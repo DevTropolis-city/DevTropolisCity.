@@ -1,0 +1,1939 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DevTropolis — GitHub City</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#03045E; font-family:'Space Grotesk', sans-serif; }
+  #scene-canvas { position:absolute; inset:0; display:block; }
+
+  /* ===== HUD TOP ===== */
+  #hud-top {
+    position:absolute; top:0; left:0; right:0;
+    padding:14px 16px 12px;
+    background:linear-gradient(to bottom, rgba(3,4,94,0.94), rgba(3,4,94,0));
+    display:flex; align-items:center; justify-content:space-between;
+    pointer-events:none; z-index:10; gap:10px;
+  }
+  #hud-top .title { display:flex; align-items:center; gap:10px; min-width:0; }
+  #hud-top .logo {
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, #FF9E00, #FF5400 70%);
+    box-shadow:0 0 14px rgba(255,158,0,0.6);
+    overflow:hidden; display:flex; align-items:center; justify-content:center;
+  }
+  #hud-top .logo img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  #hud-top h1 {
+    color:#fff; font-size:16px; letter-spacing:0.1em; font-weight:700;
+    text-shadow:0 0 8px rgba(255,158,0,0.5);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  #hud-top .sub { color:#90E0EF; font-size:8px; letter-spacing:0.25em; margin-top:1px; }
+  #hud-stats { display:flex; gap:10px; color:#90E0EF; font-family:'JetBrains Mono',monospace; font-size:9.5px; flex-shrink:0; }
+  #hud-stats span b { color:#FF9E00; font-weight:600; }
+
+  /* ===== HUD BOTTOM ===== */
+  #hud-bottom {
+    position:absolute; bottom:0; left:0; right:0;
+    padding:10px 14px 14px;
+    background:linear-gradient(to top, rgba(3,4,94,0.94), rgba(3,4,94,0));
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'JetBrains Mono', monospace; font-size:10px;
+    color:#90E0EF; pointer-events:none; z-index:10; gap:8px;
+  }
+  #hud-bottom .console { display:flex; align-items:center; gap:6px; min-width:0; }
+  #hud-bottom .console .prompt { color:#FF9E00; font-weight:600; flex-shrink:0; }
+  #console-text { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #hud-bottom .toggle {
+    display:flex; align-items:center; gap:5px; flex-shrink:0;
+    background:rgba(255,158,0,0.12); border:1px solid rgba(255,158,0,0.4);
+    border-radius:20px; padding:5px 10px; color:#FF9E00;
+    pointer-events:auto; cursor:pointer;
+  }
+
+  /* ===== SHARE BUTTON ===== */
+  #btn-share {
+    position:absolute; top:14px; right:16px;
+    background:rgba(0,180,216,0.12); border:1px solid rgba(0,180,216,0.35);
+    border-radius:20px; padding:5px 12px;
+    color:#00B4D8; font-family:'JetBrains Mono',monospace; font-size:9px;
+    letter-spacing:0.1em; cursor:pointer; z-index:12;
+    display:none; align-items:center; gap:5px;
+    transition:all 0.2s;
+  }
+  #btn-share.visible { display:flex; }
+  #btn-share:hover { background:rgba(0,180,216,0.22); border-color:rgba(0,180,216,0.6); }
+
+  /* ===== DISTRICT TAG ===== */
+  #district-tag {
+    position:absolute; padding:7px 12px; border-radius:10px;
+    background:rgba(0,119,182,0.2); backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,0.15);
+    box-shadow:0 4px 20px rgba(0,0,0,0.5);
+    color:#fff; font-family:'JetBrains Mono', monospace; font-size:10.5px;
+    pointer-events:none; opacity:0; transition:opacity 0.15s ease;
+    z-index:20; transform:translate(-50%, -120%);
+    white-space:nowrap;
+  }
+  #district-tag .name { color:#FF9E00; font-weight:600; letter-spacing:0.04em; }
+  #district-tag .status { color:#90E0EF; font-size:9px; }
+
+  /* ===== INFO PANEL ===== */
+  #info-panel {
+    position:absolute; top:70px; right:14px; width:220px;
+    background:rgba(0,119,182,0.16); backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,0.12); border-radius:12px;
+    box-shadow:0 6px 30px rgba(0,0,0,0.5);
+    padding:14px 15px; color:#fff; z-index:15;
+    opacity:0; transform:translateY(-8px); pointer-events:none;
+    transition:opacity 0.2s ease, transform 0.2s ease;
+  }
+  #info-panel.visible { opacity:1; transform:translateY(0); pointer-events:auto; }
+  #info-panel .ip-name { font-weight:700; font-size:12px; color:#FF9E00; letter-spacing:0.04em; margin-bottom:2px; }
+  #info-panel .ip-lang { font-family:'JetBrains Mono',monospace; font-size:9px; color:#90E0EF; margin-bottom:8px; }
+  #info-panel .ip-row {
+    display:flex; justify-content:space-between; margin-top:6px;
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#90E0EF;
+  }
+  #info-panel .ip-row b { color:#fff; font-weight:600; }
+  #info-panel .ip-link {
+    display:block; margin-top:10px; padding:5px 10px; border-radius:8px;
+    background:rgba(255,158,0,0.1); border:1px solid rgba(255,158,0,0.25);
+    color:#FF9E00; font-family:'JetBrains Mono',monospace; font-size:9px;
+    text-decoration:none; text-align:center; letter-spacing:0.08em;
+    transition:all 0.15s;
+  }
+  #info-panel .ip-link:hover { background:rgba(255,158,0,0.2); }
+  #info-panel .ip-close {
+    position:absolute; top:8px; right:10px; color:#90E0EF;
+    font-size:13px; cursor:pointer; pointer-events:auto;
+  }
+
+  /* ===== LOADING ===== */
+  #loading {
+    position:absolute; inset:0; background:#020720;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    z-index:60; transition:opacity 0.7s ease; overflow:hidden;
+  }
+  #loading .ld-grid {
+    position:absolute; inset:0; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(0,180,216,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,180,216,0.06) 1px, transparent 1px);
+    background-size:40px 40px; animation:grid-drift 3s linear infinite;
+  }
+  @keyframes grid-drift { from{background-position:0 0} to{background-position:40px 40px} }
+
+  /* ===== SEARCH SCREEN CITY SKYLINE ===== */
+  #search-screen .ss-skyline {
+    position:absolute; left:0; right:0; bottom:0; height:40vh; min-height:200px;
+    z-index:2; pointer-events:none; overflow:hidden;
+  }
+  #search-screen .ss-skyline svg { position:absolute; bottom:0; width:100%; height:100%; }
+  #search-screen .ss-skyline .layer-back  { opacity:0.6; }
+  #search-screen .ss-skyline .layer-mid   { opacity:0.8; }
+  #search-screen .ss-skyline .layer-front { opacity:1; }
+  #search-screen .ss-skyline .win {
+    animation:win-twinkle 3.4s ease-in-out infinite;
+  }
+  #search-screen .ss-skyline .iso-top   { stroke:rgba(255,255,255,0.12); stroke-width:0.4; }
+  #search-screen .ss-skyline .iso-side  { stroke:rgba(0,0,0,0.25); stroke-width:0.4; }
+  #search-screen .ss-skyline .iso-front { stroke:rgba(255,255,255,0.06); stroke-width:0.4; }
+  @keyframes win-twinkle {
+    0%, 100% { opacity:0.45; }
+    50% { opacity:1; }
+  }
+  #search-screen .ss-haze {
+    position:absolute; left:0; right:0; bottom:0; height:40vh; min-height:200px;
+    z-index:2; pointer-events:none;
+    background:linear-gradient(to top, rgba(2,7,32,0.65) 0%, rgba(2,7,32,0.25) 45%, transparent 100%);
+  }
+  #search-screen .ss-fireflies { position:absolute; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+  #search-screen .ss-fireflies span {
+    position:absolute; width:3px; height:3px; border-radius:50%;
+    background:#FF9E00; box-shadow:0 0 6px 1px rgba(255,158,0,0.8);
+    animation:firefly-drift linear infinite;
+  }
+  #search-screen .ss-fireflies span:nth-child(even) {
+    background:#00B4D8; box-shadow:0 0 6px 1px rgba(0,180,216,0.8);
+  }
+  @keyframes firefly-drift {
+    0%   { transform:translate(0,0) scale(0.8); opacity:0; }
+    10%  { opacity:0.9; }
+    50%  { transform:translate(var(--dx,12px), -40px) scale(1.1); }
+    90%  { opacity:0.6; }
+    100% { transform:translate(calc(var(--dx,12px)*2), -90px) scale(0.7); opacity:0; }
+  }
+  #loading .ld-portal {
+    position:relative; width:100px; height:100px;
+    display:flex; align-items:center; justify-content:center; margin-bottom:24px;
+  }
+  #loading .ld-ring-outer {
+    position:absolute; inset:0; border-radius:50%;
+    border:1.5px solid rgba(255,158,0,0.25); border-top-color:#FF9E00;
+    animation:spin 1.4s linear infinite;
+  }
+  #loading .ld-ring-mid {
+    position:absolute; inset:12px; border-radius:50%;
+    border:1px solid rgba(0,180,216,0.2); border-bottom-color:#00B4D8;
+    animation:spin 1s linear infinite reverse;
+  }
+  #loading .ld-core {
+    width:36px; height:36px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #FF9E00, #FF5400 70%);
+    box-shadow:0 0 20px rgba(255,158,0,0.8); animation:core-pulse 1.2s ease-in-out infinite alternate;
+    overflow:hidden; display:flex; align-items:center; justify-content:center;
+  }
+  #loading .ld-core img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  @keyframes core-pulse {
+    from { box-shadow:0 0 20px rgba(255,158,0,0.8); transform:scale(1); }
+    to   { box-shadow:0 0 32px rgba(255,158,0,1); transform:scale(1.08); }
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #loading .ld-title {
+    color:#fff; font-size:18px; font-weight:700; letter-spacing:0.18em;
+    background:linear-gradient(135deg,#fff 40%,#FFD08A);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; margin-bottom:4px;
+  }
+  #loading .ld-sub {
+    color:#90E0EF; font-family:'JetBrains Mono',monospace;
+    font-size:9px; letter-spacing:0.25em; margin-bottom:24px; opacity:0.6;
+  }
+  #loading .ld-bar-wrap {
+    width:220px; height:3px; background:rgba(255,255,255,0.07);
+    border-radius:99px; overflow:hidden; margin-bottom:12px;
+  }
+  #loading .ld-bar {
+    height:100%; width:0%; border-radius:99px;
+    background:linear-gradient(90deg, #FF5400, #FF9E00, #00B4D8);
+    background-size:200% 100%; transition:width 0.4s cubic-bezier(0.4,0,0.2,1);
+    animation:bar-shimmer 1.5s linear infinite;
+    box-shadow:0 0 8px rgba(255,158,0,0.6);
+  }
+  @keyframes bar-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  #loading .ld-msg {
+    color:#90E0EF; font-family:'JetBrains Mono',monospace;
+    font-size:9.5px; letter-spacing:0.1em; min-height:16px;
+    transition:opacity 0.3s ease;
+  }
+  #loading .ld-msg.fade { opacity:0; }
+
+  /* ===== SEARCH SCREEN ===== */
+  #search-screen {
+    position:absolute; inset:0; z-index:100;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    overflow:hidden; background:#020720;
+  }
+  #search-screen .ss-bg {
+    position:absolute; inset:0; z-index:0;
+    background:
+      radial-gradient(ellipse 70% 55% at 20% 15%, rgba(255,84,0,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 45% at 80% 85%, rgba(0,180,216,0.15) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 60% at 50% 50%, rgba(3,4,94,0.92) 0%, transparent 100%);
+    animation:bg-pulse 8s ease-in-out infinite alternate;
+  }
+  @keyframes bg-pulse { 0%{opacity:0.8} 100%{opacity:1} }
+  #search-screen .ss-grid {
+    position:absolute; inset:0; pointer-events:none; z-index:1;
+    background-image:
+      linear-gradient(rgba(0,180,216,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,180,216,0.06) 1px, transparent 1px);
+    background-size:44px 44px; animation:grid-drift 20s linear infinite;
+  }
+  .search-card {
+    position:relative; z-index:3;
+    background:linear-gradient(145deg, rgba(5,12,70,0.88) 0%, rgba(2,6,45,0.94) 100%);
+    backdrop-filter:blur(28px);
+    border:1px solid rgba(255,255,255,0.1); border-radius:22px;
+    padding:32px 28px 28px;
+    width:min(380px, calc(100vw - 28px));
+    box-shadow:0 32px 80px rgba(0,0,0,0.7), 0 0 60px rgba(0,60,180,0.12);
+    display:flex; flex-direction:column; align-items:center;
+    animation:lc-fadein 0.5s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes lc-fadein {
+    from { opacity:0; transform:translateY(20px) scale(0.97); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+  .search-card::before {
+    content:''; position:absolute; top:0; left:10%; right:10%; height:1px;
+    background:linear-gradient(90deg, transparent, rgba(255,158,0,0.5), rgba(0,180,216,0.3), transparent);
+    border-radius:100%;
+  }
+  /* ===== 3D ISOMETRIC LOGO ===== */
+  .sc-logo {
+    width:96px; height:96px; margin-bottom:16px; flex-shrink:0;
+    perspective:600px; position:relative;
+  }
+  .sc-logo .iso-stage {
+    position:absolute; inset:0;
+    transform-style:preserve-3d;
+    transform:rotateX(-28deg) rotateY(-38deg);
+    animation:iso-spin 9s linear infinite;
+  }
+  @keyframes iso-spin {
+    0%   { transform:rotateX(-28deg) rotateY(-38deg); }
+    50%  { transform:rotateX(-28deg) rotateY(322deg); }
+    100% { transform:rotateX(-28deg) rotateY(-38deg); }
+  }
+  .iso-block { position:absolute; transform-style:preserve-3d; }
+  .iso-face {
+    position:absolute; border:0.5px solid rgba(255,255,255,0.18);
+    background-size:cover;
+  }
+  .iso-face.top   { background:linear-gradient(135deg,#FFD08A,#FF9E00); }
+  .iso-face.front { background:linear-gradient(180deg,#FF7A00,#E84E00); }
+  .iso-face.side  { background:linear-gradient(180deg,#C73D00,#9E2E00); }
+  .iso-face .win {
+    position:absolute; background:#FFE7B0; box-shadow:0 0 4px 1px rgba(255,200,100,0.9);
+    animation:iso-win-twinkle 2.6s ease-in-out infinite;
+  }
+  .iso-face.side .win { background:#BFEFFF; box-shadow:0 0 4px 1px rgba(120,220,255,0.9); }
+  @keyframes iso-win-twinkle { 0%,100%{opacity:0.5} 50%{opacity:1} }
+  .iso-ground {
+    position:absolute; width:84px; height:84px; left:50%; top:50%;
+    transform:translate(-50%,-50%) translateZ(-1px) rotateX(90deg);
+    background:radial-gradient(circle, rgba(0,180,216,0.35), transparent 70%);
+    border-radius:50%; filter:blur(1px);
+  }
+  .sc-logo .iso-glow {
+    position:absolute; inset:-14px; z-index:-1; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,158,0,0.35), transparent 70%);
+    filter:blur(6px);
+  }
+  .search-card h2 {
+    color:#fff; font-size:22px; font-weight:700; letter-spacing:0.18em;
+    background:linear-gradient(135deg,#fff 40%,#FFD08A);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; margin-bottom:3px;
+  }
+  .search-card .sc-sub {
+    color:#90E0EF; font-size:8.5px; letter-spacing:0.3em;
+    font-family:'JetBrains Mono',monospace; margin-bottom:6px; opacity:0.7;
+  }
+  .sc-tagline {
+    color:rgba(144,224,239,0.55); font-size:11px; text-align:center;
+    margin-bottom:24px; line-height:1.5;
+  }
+  .sc-divider {
+    width:100%; height:1px; margin-bottom:20px;
+    background:linear-gradient(90deg, transparent, rgba(0,180,216,0.3), rgba(255,158,0,0.2), transparent);
+  }
+  .sc-label {
+    align-self:flex-start; color:#90E0EF;
+    font-family:'JetBrains Mono',monospace; font-size:8px; letter-spacing:0.22em;
+    margin-bottom:6px; opacity:0.8;
+  }
+  .sc-input-wrap { position:relative; width:100%; margin-bottom:16px; }
+  .sc-input-wrap .sc-icon {
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    color:rgba(144,224,239,0.4); font-size:13px; pointer-events:none;
+    display:flex; align-items:center;
+  }
+  .sc-input-wrap input {
+    width:100%;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px; padding:13px 14px 13px 38px;
+    color:#fff; font-family:'JetBrains Mono',monospace; font-size:14px;
+    outline:none; transition:border-color 0.25s, box-shadow 0.25s, background 0.25s;
+    -webkit-appearance:none;
+  }
+  .sc-input-wrap input:focus {
+    border-color:rgba(255,158,0,0.45);
+    box-shadow:0 0 0 3px rgba(255,158,0,0.08);
+    background:rgba(255,255,255,0.06);
+  }
+  .sc-input-wrap input::placeholder { color:rgba(144,224,239,0.28); }
+  .btn-build {
+    width:100%; padding:14px;
+    background:linear-gradient(135deg, #FF9E00 0%, #FF6200 60%, #FF3D00 100%);
+    border:none; border-radius:12px; cursor:pointer;
+    color:#fff; font-family:'Space Grotesk',sans-serif;
+    font-size:13px; font-weight:700; letter-spacing:0.14em;
+    box-shadow:0 4px 24px rgba(255,100,0,0.45);
+    transition:all 0.2s; position:relative; overflow:hidden; margin-bottom:14px;
+  }
+  .btn-build:hover { box-shadow:0 6px 32px rgba(255,100,0,0.65); transform:translateY(-2px); }
+  .btn-build:active { transform:translateY(0); box-shadow:0 2px 14px rgba(255,100,0,0.4); }
+  .btn-build:disabled { opacity:0.5; cursor:default; transform:none; }
+  .sc-error {
+    margin-top:0; margin-bottom:4px; width:100%;
+    color:#f87171; background:rgba(248,113,113,0.07);
+    border:1px solid rgba(248,113,113,0.2); border-radius:8px;
+    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.05em;
+    padding:8px 12px; text-align:center; display:none;
+  }
+  .sc-error.visible { display:block; }
+  .sc-examples {
+    margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+  }
+  .sc-example {
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    border-radius:8px; padding:5px 10px; cursor:pointer;
+    color:rgba(144,224,239,0.5); font-family:'JetBrains Mono',monospace; font-size:9px;
+    transition:all 0.15s; letter-spacing:0.05em;
+  }
+  .sc-example:hover { background:rgba(255,158,0,0.08); border-color:rgba(255,158,0,0.25); color:#FF9E00; }
+  .sc-hint {
+    margin-top:16px; color:rgba(144,224,239,0.28);
+    font-family:'JetBrains Mono',monospace; font-size:8px; letter-spacing:0.12em;
+    text-align:center; line-height:1.6;
+  }
+  .sc-social {
+    margin-top:12px; display:flex; align-items:center; justify-content:center; gap:14px;
+  }
+  .sc-social a {
+    display:flex; align-items:center; gap:5px;
+    color:rgba(144,224,239,0.5); text-decoration:none;
+    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.05em;
+    transition:color 0.15s;
+  }
+  .sc-social a:hover { color:#FF9E00; }
+  .sc-social a svg { width:12px; height:12px; flex-shrink:0; }
+
+  /* ===== PROFILE STRIP (below HUD) ===== */
+  #profile-strip {
+    position:absolute; top:68px; left:14px;
+    display:none; align-items:center; gap:10px;
+    background:rgba(0,119,182,0.14); backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,0.1); border-radius:12px;
+    padding:8px 13px; z-index:11; pointer-events:none; max-width:260px;
+  }
+  #profile-strip.visible { display:flex; }
+  #profile-strip .ps-avatar {
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, #FF9E00, #FF5400 70%);
+    overflow:hidden; border:1px solid rgba(255,158,0,0.3);
+  }
+  #profile-strip .ps-avatar img { width:100%; height:100%; object-fit:cover; }
+  #profile-strip .ps-info { min-width:0; }
+  #profile-strip .ps-name {
+    color:#fff; font-weight:700; font-size:11px; letter-spacing:0.05em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  #profile-strip .ps-meta {
+    color:#90E0EF; font-family:'JetBrains Mono',monospace;
+    font-size:8.5px; letter-spacing:0.05em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* ===== LANG LEGEND ===== */
+  #lang-legend {
+    position:absolute; bottom:52px; left:14px;
+    display:none; flex-direction:column; gap:4px;
+    background:rgba(0,119,182,0.14); backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,0.1); border-radius:10px;
+    padding:10px 12px; z-index:11; pointer-events:none;
+  }
+  #lang-legend.visible { display:flex; }
+  #lang-legend .ll-title {
+    color:#90E0EF; font-family:'JetBrains Mono',monospace;
+    font-size:7.5px; letter-spacing:0.2em; margin-bottom:4px; opacity:0.7;
+  }
+  .ll-item { display:flex; align-items:center; gap:6px; }
+  .ll-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .ll-label { color:#fff; font-family:'JetBrains Mono',monospace; font-size:9px; }
+
+  /* ===== MOBILE KEYBOARD ===== */
+  @media (max-height:520px) {
+    #search-screen { justify-content:flex-start; overflow-y:auto; padding:8px 0 16px; -webkit-overflow-scrolling:touch; }
+    .search-card { padding:20px 22px 20px; margin:0 auto; }
+    .sc-logo { width:64px; height:64px; margin-bottom:10px; }
+    .search-card h2 { font-size:18px; }
+    .sc-tagline { display:none; }
+    .sc-examples { display:none; }
+  }
+  body.keyboard-open #search-screen {
+    justify-content:flex-start; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:10px 0 20px;
+  }
+  body.keyboard-open .search-card { margin:0 auto 20px; }
+  body.keyboard-open .sc-logo { display:none; }
+  body.keyboard-open .sc-tagline { display:none; }
+  body.keyboard-open .sc-examples { display:none; }
+  body.keyboard-open .sc-hint { display:none; }
+  body.keyboard-open .sc-social { display:none; }
+  body.keyboard-open .ss-skyline { display:none; }
+  body.keyboard-open .ss-fireflies { display:none; }
+  body.keyboard-open .ss-haze { display:none; }
+  .sc-input-wrap input:focus { scroll-margin-bottom:16px; }
+</style>
+</head>
+<body>
+
+<!-- ===== SEARCH SCREEN ===== -->
+<div id="search-screen">
+  <div class="ss-bg"></div>
+  <div class="ss-grid"></div>
+  <div class="ss-skyline">
+    <svg class="layer-back" viewBox="0 0 400 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="iso-bld">
+        <polygon class="iso-top" points="0.0,80.3 6.7,73.3 41.4,73.3 34.8,80.3" fill="#3349a8"/>
+        <polygon class="iso-side" points="34.8,80.3 41.4,73.3 41.4,153.0 34.8,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="0.0,80.3 34.8,80.3 34.8,160.0 0.0,160.0" fill="#22318a"/>
+        <rect class="win" x="6.5" y="132.2" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:0.0s"/>
+        <rect class="win" x="19.6" y="99.0" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:0.5s"/>
+        <rect class="win" x="15.0" y="135.1" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:1.1s"/>
+        <polygon class="iso-top" points="41.5,97.7 48.2,90.7 82.9,90.7 76.2,97.7" fill="#3349a8"/>
+        <polygon class="iso-side" points="76.2,97.7 82.9,90.7 82.9,153.0 76.2,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="41.5,97.7 76.2,97.7 76.2,160.0 41.5,160.0" fill="#22318a"/>
+        <rect class="win" x="45.7" y="129.0" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:1.6s"/>
+        <rect class="win" x="59.0" y="131.8" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:2.1s"/>
+        <polygon class="iso-top" points="91.2,110.0 97.8,103.0 128.4,103.0 121.7,110.0" fill="#3349a8"/>
+        <polygon class="iso-side" points="121.7,110.0 128.4,103.0 128.4,153.0 121.7,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="91.2,110.0 121.7,110.0 121.7,160.0 91.2,160.0" fill="#22318a"/>
+        <rect class="win" x="113.6" y="150.6" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:2.7s"/>
+        <rect class="win" x="100.9" y="120.1" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:3.2s"/>
+        <polygon class="iso-top" points="127.3,103.5 133.9,96.5 164.6,96.5 158.0,103.5" fill="#3349a8"/>
+        <polygon class="iso-side" points="158.0,103.5 164.6,96.5 164.6,153.0 158.0,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="127.3,103.5 158.0,103.5 158.0,160.0 127.3,160.0" fill="#22318a"/>
+        <rect class="win" x="132.7" y="114.5" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:0.3s"/>
+        <rect class="win" x="134.0" y="127.0" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:0.8s"/>
+        <rect class="win" x="132.6" y="125.8" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:1.4s"/>
+        <polygon class="iso-top" points="164.8,103.6 171.4,96.6 209.2,96.6 202.6,103.6" fill="#3349a8"/>
+        <polygon class="iso-side" points="202.6,103.6 209.2,96.6 209.2,153.0 202.6,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="164.8,103.6 202.6,103.6 202.6,160.0 164.8,160.0" fill="#22318a"/>
+        <rect class="win" x="175.4" y="126.7" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:1.9s"/>
+        <rect class="win" x="168.7" y="149.1" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:2.4s"/>
+        <polygon class="iso-top" points="211.7,81.6 218.4,74.6 250.0,74.6 243.4,81.6" fill="#3349a8"/>
+        <polygon class="iso-side" points="243.4,81.6 250.0,74.6 250.0,153.0 243.4,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="211.7,81.6 243.4,81.6 243.4,160.0 211.7,160.0" fill="#22318a"/>
+        <rect class="win" x="227.8" y="142.8" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:3.0s"/>
+        <rect class="win" x="231.0" y="110.2" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:0.1s"/>
+        <rect class="win" x="222.0" y="150.2" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:0.6s"/>
+        <polygon class="iso-top" points="259.4,103.4 266.1,96.4 296.4,96.4 289.8,103.4" fill="#3349a8"/>
+        <polygon class="iso-side" points="289.8,103.4 296.4,96.4 296.4,153.0 289.8,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="259.4,103.4 289.8,103.4 289.8,160.0 259.4,160.0" fill="#22318a"/>
+        <rect class="win" x="284.0" y="152.7" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:1.2s"/>
+        <rect class="win" x="270.1" y="144.3" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:1.7s"/>
+        <polygon class="iso-top" points="299.8,81.2 306.5,74.2 335.9,74.2 329.2,81.2" fill="#3349a8"/>
+        <polygon class="iso-side" points="329.2,81.2 335.9,74.2 335.9,153.0 329.2,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="299.8,81.2 329.2,81.2 329.2,160.0 299.8,160.0" fill="#22318a"/>
+        <rect class="win" x="317.5" y="156.7" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:2.2s"/>
+        <rect class="win" x="314.1" y="106.9" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:2.7s"/>
+        <rect class="win" x="323.7" y="85.0" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:3.3s"/>
+        <polygon class="iso-top" points="344.8,80.7 351.4,73.7 390.2,73.7 383.6,80.7" fill="#3349a8"/>
+        <polygon class="iso-side" points="383.6,80.7 390.2,73.7 390.2,153.0 383.6,160.0" fill="#192568"/>
+        <polygon class="iso-front" points="344.8,80.7 383.6,80.7 383.6,160.0 344.8,160.0" fill="#22318a"/>
+        <rect class="win" x="350.0" y="128.7" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:0.4s"/>
+        <rect class="win" x="378.0" y="107.7" width="1.8" height="1.8" fill="#FF9E00" style="animation-delay:0.9s"/>
+        <rect class="win" x="375.8" y="108.6" width="1.8" height="1.8" fill="#00B4D8" style="animation-delay:1.5s"/>
+      </g>
+    </svg>
+    <svg class="layer-mid" viewBox="0 0 400 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="iso-bld">
+        <polygon class="iso-top" points="0.0,86.3 9.0,77.3 48.4,77.3 39.5,86.3" fill="#2c3f98"/>
+        <polygon class="iso-side" points="39.5,86.3 48.4,77.3 48.4,151.0 39.5,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="0.0,86.3 39.5,86.3 39.5,160.0 0.0,160.0" fill="#1c2c78"/>
+        <rect class="win" x="7.2" y="118.6" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:0.0s"/>
+        <rect class="win" x="36.2" y="133.2" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:0.5s"/>
+        <rect class="win" x="26.0" y="134.5" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:1.1s"/>
+        <polygon class="iso-top" points="50.1,70.5 59.1,61.5 98.1,61.5 89.1,70.5" fill="#2c3f98"/>
+        <polygon class="iso-side" points="89.1,70.5 98.1,61.5 98.1,151.0 89.1,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="50.1,70.5 89.1,70.5 89.1,160.0 50.1,160.0" fill="#1c2c78"/>
+        <rect class="win" x="79.1" y="156.4" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:1.6s"/>
+        <rect class="win" x="78.1" y="153.7" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:2.1s"/>
+        <rect class="win" x="61.3" y="136.8" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:2.7s"/>
+        <polygon class="iso-top" points="106.0,72.3 115.0,63.3 150.5,63.3 141.5,72.3" fill="#2c3f98"/>
+        <polygon class="iso-side" points="141.5,72.3 150.5,63.3 150.5,151.0 141.5,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="106.0,72.3 141.5,72.3 141.5,160.0 106.0,160.0" fill="#1c2c78"/>
+        <rect class="win" x="126.8" y="87.6" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:3.2s"/>
+        <rect class="win" x="123.9" y="144.4" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:0.3s"/>
+        <rect class="win" x="132.1" y="136.6" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:0.8s"/>
+        <rect class="win" x="112.8" y="100.9" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:1.4s"/>
+        <polygon class="iso-top" points="147.1,56.1 156.0,47.1 199.5,47.1 190.5,56.1" fill="#2c3f98"/>
+        <polygon class="iso-side" points="190.5,56.1 199.5,47.1 199.5,151.0 190.5,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="147.1,56.1 190.5,56.1 190.5,160.0 147.1,160.0" fill="#1c2c78"/>
+        <rect class="win" x="171.5" y="147.2" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:1.9s"/>
+        <rect class="win" x="156.4" y="156.4" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:2.4s"/>
+        <rect class="win" x="157.5" y="132.3" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:3.0s"/>
+        <rect class="win" x="186.9" y="117.2" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:0.1s"/>
+        <polygon class="iso-top" points="203.8,86.9 212.7,77.9 251.4,77.9 242.4,86.9" fill="#2c3f98"/>
+        <polygon class="iso-side" points="242.4,86.9 251.4,77.9 251.4,151.0 242.4,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="203.8,86.9 242.4,86.9 242.4,160.0 203.8,160.0" fill="#1c2c78"/>
+        <rect class="win" x="221.4" y="113.0" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:0.6s"/>
+        <rect class="win" x="208.9" y="119.8" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:1.2s"/>
+        <rect class="win" x="237.3" y="153.7" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:1.7s"/>
+        <polygon class="iso-top" points="252.3,70.5 261.2,61.5 298.7,61.5 289.8,70.5" fill="#2c3f98"/>
+        <polygon class="iso-side" points="289.8,70.5 298.7,61.5 298.7,151.0 289.8,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="252.3,70.5 289.8,70.5 289.8,160.0 252.3,160.0" fill="#1c2c78"/>
+        <rect class="win" x="280.5" y="156.3" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:2.2s"/>
+        <rect class="win" x="274.7" y="113.7" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:2.7s"/>
+        <rect class="win" x="277.7" y="106.8" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:3.3s"/>
+        <rect class="win" x="281.0" y="154.8" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:0.4s"/>
+        <polygon class="iso-top" points="296.6,56.9 305.6,47.9 343.0,47.9 334.1,56.9" fill="#2c3f98"/>
+        <polygon class="iso-side" points="334.1,56.9 343.0,47.9 343.0,151.0 334.1,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="296.6,56.9 334.1,56.9 334.1,160.0 296.6,160.0" fill="#1c2c78"/>
+        <rect class="win" x="305.2" y="97.0" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:0.9s"/>
+        <rect class="win" x="327.2" y="130.1" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:1.5s"/>
+        <rect class="win" x="326.6" y="83.4" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:2.0s"/>
+        <polygon class="iso-top" points="339.6,84.7 348.6,75.7 393.9,75.7 385.0,84.7" fill="#2c3f98"/>
+        <polygon class="iso-side" points="385.0,84.7 393.9,75.7 393.9,151.0 385.0,160.0" fill="#142058"/>
+        <polygon class="iso-front" points="339.6,84.7 385.0,84.7 385.0,160.0 339.6,160.0" fill="#1c2c78"/>
+        <rect class="win" x="344.3" y="139.3" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:2.5s"/>
+        <rect class="win" x="373.8" y="119.5" width="2.2" height="2.2" fill="#00B4D8" style="animation-delay:3.1s"/>
+        <rect class="win" x="349.2" y="149.2" width="2.2" height="2.2" fill="#FF9E00" style="animation-delay:0.2s"/>
+      </g>
+    </svg>
+    <svg class="layer-front" viewBox="0 0 400 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="iso-bld">
+        <polygon class="iso-top" points="0.0,59.7 10.7,47.7 60.1,47.7 49.5,59.7" fill="#26337e"/>
+        <polygon class="iso-side" points="49.5,59.7 60.1,47.7 60.1,148.0 49.5,160.0" fill="#0f1644"/>
+        <polygon class="iso-front" points="0.0,59.7 49.5,59.7 49.5,160.0 0.0,160.0" fill="#161f5e"/>
+        <rect class="win" x="42.6" y="78.4" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.0s"/>
+        <rect class="win" x="16.6" y="78.1" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:0.5s"/>
+        <rect class="win" x="14.0" y="133.1" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:1.1s"/>
+        <rect class="win" x="20.6" y="82.1" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:1.6s"/>
+        <rect class="win" x="4.8" y="111.0" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:2.1s"/>
+        <rect class="win" x="44.1" y="110.5" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.7s"/>
+        <polygon class="iso-top" points="57.9,41.9 68.6,29.9 111.6,29.9 100.9,41.9" fill="#26337e"/>
+        <polygon class="iso-side" points="100.9,41.9 111.6,29.9 111.6,148.0 100.9,160.0" fill="#0f1644"/>
+        <polygon class="iso-front" points="57.9,41.9 100.9,41.9 100.9,160.0 57.9,160.0" fill="#161f5e"/>
+        <rect class="win" x="95.6" y="72.0" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:3.2s"/>
+        <rect class="win" x="77.0" y="80.4" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:0.3s"/>
+        <rect class="win" x="88.6" y="85.2" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.8s"/>
+        <rect class="win" x="70.8" y="93.7" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:1.4s"/>
+        <rect class="win" x="95.8" y="64.1" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:1.9s"/>
+        <rect class="win" x="63.0" y="83.7" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.4s"/>
+        <polygon class="iso-top" points="113.0,22.6 123.6,10.6 164.3,10.6 153.6,22.6" fill="#26337e"/>
+        <polygon class="iso-side" points="153.6,22.6 164.3,10.6 164.3,148.0 153.6,160.0" fill="#0f1644"/>
+        <polygon class="iso-front" points="113.0,22.6 153.6,22.6 153.6,160.0 113.0,160.0" fill="#161f5e"/>
+        <rect class="win" x="120.5" y="84.3" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:3.0s"/>
+        <rect class="win" x="144.3" y="89.1" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:0.1s"/>
+        <rect class="win" x="118.6" y="55.0" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.6s"/>
+        <rect class="win" x="137.8" y="120.1" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:1.2s"/>
+        <rect class="win" x="142.5" y="69.6" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:1.7s"/>
+        <polygon class="iso-top" points="168.1,32.4 178.8,20.4 223.8,20.4 213.1,32.4" fill="#26337e"/>
+        <polygon class="iso-side" points="213.1,32.4 223.8,20.4 223.8,148.0 213.1,160.0" fill="#0f1644"/>
+        <polygon class="iso-front" points="168.1,32.4 213.1,32.4 213.1,160.0 168.1,160.0" fill="#161f5e"/>
+        <rect class="win" x="176.3" y="122.4" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.2s"/>
+        <rect class="win" x="204.2" y="53.6" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.7s"/>
+        <rect class="win" x="195.1" y="148.0" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:3.3s"/>
+        <rect class="win" x="203.8" y="83.9" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.4s"/>
+        <rect class="win" x="177.5" y="156.0" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.9s"/>
+        <rect class="win" x="173.6" y="140.3" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:1.5s"/>
+        <polygon class="iso-top" points="229.5,50.2 240.2,38.2 281.0,38.2 270.4,50.2" fill="#26337e"/>
+        <polygon class="iso-side" points="270.4,50.2 281.0,38.2 281.0,148.0 270.4,160.0" fill="#0f1644"/>
+        <polygon class="iso-front" points="229.5,50.2 270.4,50.2 270.4,160.0 229.5,160.0" fill="#161f5e"/>
+        <rect class="win" x="256.0" y="124.3" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.0s"/>
+        <rect class="win" x="256.7" y="72.2" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.5s"/>
+        <rect class="win" x="259.8" y="66.1" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:3.1s"/>
+        <rect class="win" x="262.4" y="150.3" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.2s"/>
+        <rect class="win" x="244.4" y="81.7" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.7s"/>
+        <polygon class="iso-top" points="281.5,56.4 292.2,44.4 344.1,44.4 333.4,56.4" fill="#26337e"/>
+        <polygon class="iso-side" points="333.4,56.4 344.1,44.4 344.1,148.0 333.4,160.0" fill="#0f1644"/>
+        <polygon class="iso-front" points="281.5,56.4 333.4,56.4 333.4,160.0 281.5,160.0" fill="#161f5e"/>
+        <rect class="win" x="323.3" y="94.5" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:1.2s"/>
+        <rect class="win" x="289.1" y="78.2" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:1.8s"/>
+        <rect class="win" x="319.4" y="66.7" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.3s"/>
+        <rect class="win" x="322.4" y="144.8" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:2.8s"/>
+        <rect class="win" x="293.5" y="117.9" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:3.4s"/>
+        <rect class="win" x="324.2" y="70.0" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:0.5s"/>
+        <polygon class="iso-top" points="344.0,59.3 354.6,47.3 398.0,47.3 387.3,59.3" fill="#26337e"/>
+        <polygon class="iso-side" points="387.3,59.3 398.0,47.3 398.0,148.0 387.3,160.0" fill="#0f1644"/>
+        <polygon class="iso-front" points="344.0,59.3 387.3,59.3 387.3,160.0 344.0,160.0" fill="#161f5e"/>
+        <rect class="win" x="365.0" y="74.0" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:1.0s"/>
+        <rect class="win" x="367.4" y="151.5" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:1.6s"/>
+        <rect class="win" x="359.3" y="118.2" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:2.1s"/>
+        <rect class="win" x="349.3" y="71.8" width="2.6" height="2.6" fill="#00B4D8" style="animation-delay:2.6s"/>
+        <rect class="win" x="382.4" y="155.5" width="2.6" height="2.6" fill="#FF9E00" style="animation-delay:3.1s"/>
+      </g>
+    </svg>
+  </div>
+  <div class="ss-fireflies">
+    <span style="left:8%;  bottom:22%; --dx:14px; animation-duration:7s;  animation-delay:0s;"></span>
+    <span style="left:18%; bottom:30%; --dx:-10px; animation-duration:8.5s;animation-delay:1.2s;"></span>
+    <span style="left:34%; bottom:18%; --dx:16px; animation-duration:6.2s; animation-delay:2.4s;"></span>
+    <span style="left:52%; bottom:26%; --dx:-14px; animation-duration:9s;  animation-delay:0.6s;"></span>
+    <span style="left:68%; bottom:20%; --dx:10px; animation-duration:7.6s; animation-delay:3s;"></span>
+    <span style="left:81%; bottom:32%; --dx:-12px; animation-duration:8s;  animation-delay:1.8s;"></span>
+    <span style="left:91%; bottom:24%; --dx:14px; animation-duration:6.8s; animation-delay:2.9s;"></span>
+  </div>
+  <div class="ss-haze"></div>
+  <div class="search-card">
+    <div class="sc-logo">
+      <div class="iso-glow"></div>
+      <div class="iso-stage">
+        <!-- ground disc -->
+        <div class="iso-ground"></div>
+
+        <!-- TOWER A (tall, center-left) -->
+        <div class="iso-block" style="width:18px;height:46px;left:38px;top:8px;">
+          <div class="iso-face front" style="width:18px;height:46px;transform:translateZ(9px);">
+            <span class="win" style="width:3px;height:3px;left:3px;top:6px;"></span>
+            <span class="win" style="width:3px;height:3px;left:11px;top:6px;animation-delay:0.4s;"></span>
+            <span class="win" style="width:3px;height:3px;left:3px;top:14px;animation-delay:0.8s;"></span>
+            <span class="win" style="width:3px;height:3px;left:11px;top:14px;animation-delay:1.2s;"></span>
+            <span class="win" style="width:3px;height:3px;left:3px;top:22px;animation-delay:1.6s;"></span>
+            <span class="win" style="width:3px;height:3px;left:11px;top:22px;animation-delay:0.2s;"></span>
+            <span class="win" style="width:3px;height:3px;left:3px;top:30px;animation-delay:1.0s;"></span>
+            <span class="win" style="width:3px;height:3px;left:11px;top:30px;animation-delay:0.6s;"></span>
+          </div>
+          <div class="iso-face side" style="width:18px;height:46px;transform:rotateY(90deg) translateZ(9px);">
+            <span class="win" style="width:2.4px;height:2.4px;left:3px;top:8px;"></span>
+            <span class="win" style="width:2.4px;height:2.4px;left:3px;top:18px;animation-delay:0.9s;"></span>
+            <span class="win" style="width:2.4px;height:2.4px;left:3px;top:28px;animation-delay:1.5s;"></span>
+          </div>
+          <div class="iso-face top" style="width:18px;height:18px;transform:translateZ(9px) translateY(-9px) rotateX(90deg);"></div>
+        </div>
+
+        <!-- TOWER B (tallest, center) -->
+        <div class="iso-block" style="width:20px;height:60px;left:58px;top:0px;">
+          <div class="iso-face front" style="width:20px;height:60px;transform:translateZ(10px);">
+            <span class="win" style="width:3px;height:3px;left:3px;top:6px;animation-delay:0.3s;"></span>
+            <span class="win" style="width:3px;height:3px;left:12px;top:6px;animation-delay:1.3s;"></span>
+            <span class="win" style="width:3px;height:3px;left:3px;top:14px;animation-delay:0.7s;"></span>
+            <span class="win" style="width:3px;height:3px;left:12px;top:14px;animation-delay:1.7s;"></span>
+            <span class="win" style="width:3px;height:3px;left:3px;top:22px;animation-delay:1.1s;"></span>
+            <span class="win" style="width:3px;height:3px;left:12px;top:22px;animation-delay:0.1s;"></span>
+            <span class="win" style="width:3px;height:3px;left:3px;top:30px;animation-delay:1.9s;"></span>
+            <span class="win" style="width:3px;height:3px;left:12px;top:30px;animation-delay:0.5s;"></span>
+            <span class="win" style="width:3px;height:3px;left:3px;top:38px;animation-delay:1.4s;"></span>
+            <span class="win" style="width:3px;height:3px;left:12px;top:38px;animation-delay:0.9s;"></span>
+          </div>
+          <div class="iso-face side" style="width:20px;height:60px;transform:rotateY(90deg) translateZ(10px);">
+            <span class="win" style="width:2.4px;height:2.4px;left:3px;top:8px;animation-delay:0.2s;"></span>
+            <span class="win" style="width:2.4px;height:2.4px;left:3px;top:18px;animation-delay:1.1s;"></span>
+            <span class="win" style="width:2.4px;height:2.4px;left:3px;top:28px;animation-delay:0.6s;"></span>
+            <span class="win" style="width:2.4px;height:2.4px;left:3px;top:38px;animation-delay:1.6s;"></span>
+          </div>
+          <div class="iso-face top" style="width:20px;height:20px;transform:translateZ(10px) translateY(-10px) rotateX(90deg);"></div>
+        </div>
+
+        <!-- TOWER C (short, right) -->
+        <div class="iso-block" style="width:16px;height:34px;left:80px;top:20px;">
+          <div class="iso-face front" style="width:16px;height:34px;transform:translateZ(8px);">
+            <span class="win" style="width:2.6px;height:2.6px;left:3px;top:6px;animation-delay:1.0s;"></span>
+            <span class="win" style="width:2.6px;height:2.6px;left:10px;top:6px;animation-delay:0.3s;"></span>
+            <span class="win" style="width:2.6px;height:2.6px;left:3px;top:14px;animation-delay:1.6s;"></span>
+            <span class="win" style="width:2.6px;height:2.6px;left:10px;top:14px;animation-delay:0.8s;"></span>
+            <span class="win" style="width:2.6px;height:2.6px;left:3px;top:22px;animation-delay:0.4s;"></span>
+            <span class="win" style="width:2.6px;height:2.6px;left:10px;top:22px;animation-delay:1.3s;"></span>
+          </div>
+          <div class="iso-face side" style="width:16px;height:34px;transform:rotateY(90deg) translateZ(8px);">
+            <span class="win" style="width:2.2px;height:2.2px;left:3px;top:8px;animation-delay:0.5s;"></span>
+            <span class="win" style="width:2.2px;height:2.2px;left:3px;top:18px;animation-delay:1.4s;"></span>
+          </div>
+          <div class="iso-face top" style="width:16px;height:16px;transform:translateZ(8px) translateY(-8px) rotateX(90deg);"></div>
+        </div>
+
+        <!-- TOWER D (smallest, far left, sits behind) -->
+        <div class="iso-block" style="width:13px;height:24px;left:20px;top:30px;">
+          <div class="iso-face front" style="width:13px;height:24px;transform:translateZ(7px);">
+            <span class="win" style="width:2.2px;height:2.2px;left:2.5px;top:5px;animation-delay:0.2s;"></span>
+            <span class="win" style="width:2.2px;height:2.2px;left:8px;top:5px;animation-delay:1.2s;"></span>
+            <span class="win" style="width:2.2px;height:2.2px;left:2.5px;top:13px;animation-delay:0.7s;"></span>
+            <span class="win" style="width:2.2px;height:2.2px;left:8px;top:13px;animation-delay:1.7s;"></span>
+          </div>
+          <div class="iso-face side" style="width:13px;height:24px;transform:rotateY(90deg) translateZ(7px);"></div>
+          <div class="iso-face top" style="width:13px;height:14px;transform:translateZ(7px) translateY(-7px) rotateX(90deg);"></div>
+        </div>
+      </div>
+    </div>
+    <h2>DEVTROPOLIS</h2>
+    <div class="sc-sub">GITHUB CITY GENERATOR</div>
+    <div class="sc-tagline">Enter any GitHub username.<br>We'll build their city from real code data.</div>
+    <div class="sc-divider"></div>
+    <div class="sc-label">GITHUB USERNAME</div>
+    <div class="sc-input-wrap">
+      <span class="sc-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.28-.01-1.03-.02-2.03-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23A11.5 11.5 0 0 1 12 5.8c1.02 0 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.21.7.82.58C20.57 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg>
+      </span>
+      <input type="text" id="gh-username" placeholder="e.g. torvalds atau github.com/torvalds"
+             autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+             inputmode="text" />
+    </div>
+    <button class="btn-build" id="btn-build">⚡ BUILD MY CITY</button>
+    <div class="sc-error" id="sc-error">User not found — check the username</div>
+    <div class="sc-examples">
+      <span class="sc-example" data-user="torvalds">torvalds</span>
+      <span class="sc-example" data-user="gaearon">gaearon</span>
+      <span class="sc-example" data-user="sindresorhus">sindresorhus</span>
+      <span class="sc-example" data-user="tj">tj</span>
+    </div>
+    <div class="sc-hint">Uses GitHub public API · No login required · Works on mobile</div>
+    <div class="sc-social">
+      <a href="https://x.com/DevTropolisCity" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        @DevTropolisCity
+      </a>
+      <a href="https://github.com/DevTropolis-city/DevTropolisCity." target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.28-.01-1.03-.02-2.03-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23A11.5 11.5 0 0 1 12 5.8c1.02 0 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.21.7.82.58C20.57 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg>
+        Source
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LOADING ===== -->
+<div id="loading" style="display:none;opacity:0">
+  <div class="ld-grid"></div>
+  <div class="ld-portal">
+    <div class="ld-ring-outer"></div>
+    <div class="ld-ring-mid"></div>
+    <div class="ld-core" id="ld-core">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="padding:7px">
+        <rect x="3"  y="30" width="7"  height="14" rx="1" fill="white" opacity="0.55"/>
+        <rect x="11" y="22" width="8"  height="22" rx="1.2" fill="white" opacity="0.85"/>
+        <rect x="20" y="8"  width="11" height="36" rx="1.4" fill="white"/>
+        <rect x="32" y="18" width="8"  height="26" rx="1.2" fill="white" opacity="0.85"/>
+        <rect x="41" y="26" width="7"  height="18" rx="1" fill="white" opacity="0.55"/>
+        <line x1="25.5" y1="3" x2="25.5" y2="8" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="25.5" cy="2.2" r="1.3" fill="#FF9E00"/>
+        <rect x="22.5" y="13" width="2.4" height="2.4" rx="0.5" fill="#FF9E00"/>
+        <rect x="26.6" y="13" width="2.4" height="2.4" rx="0.5" fill="#00B4D8"/>
+        <rect x="22.5" y="18" width="2.4" height="2.4" rx="0.5" fill="#00B4D8"/>
+        <rect x="26.6" y="18" width="2.4" height="2.4" rx="0.5" fill="#FF9E00"/>
+        <rect x="22.5" y="23" width="2.4" height="2.4" rx="0.5" fill="#FF9E00" opacity="0.85"/>
+        <rect x="26.6" y="23" width="2.4" height="2.4" rx="0.5" fill="#00B4D8" opacity="0.85"/>
+        <line x1="2" y1="44" x2="50" y2="44" stroke="white" stroke-width="1.5" stroke-opacity="0.3"/>
+      </svg>
+    </div>
+  </div>
+  <div class="ld-title" id="ld-title">DEVTROPOLIS</div>
+  <div class="ld-sub" id="ld-sub">BUILDING YOUR CITY…</div>
+  <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
+  <div class="ld-msg" id="ld-msg">FETCHING GITHUB DATA…</div>
+</div>
+
+<!-- ===== CANVAS ===== -->
+<canvas id="scene-canvas" style="display:none"></canvas>
+
+<!-- ===== HUD TOP ===== -->
+<div id="hud-top" style="display:none">
+  <div class="title">
+    <div class="logo" id="hud-logo">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="padding:6px">
+        <rect x="3"  y="30" width="7"  height="14" rx="1" fill="white" opacity="0.55"/>
+        <rect x="11" y="22" width="8"  height="22" rx="1.2" fill="white" opacity="0.85"/>
+        <rect x="20" y="8"  width="11" height="36" rx="1.4" fill="white"/>
+        <rect x="32" y="18" width="8"  height="26" rx="1.2" fill="white" opacity="0.85"/>
+        <rect x="41" y="26" width="7"  height="18" rx="1" fill="white" opacity="0.55"/>
+        <rect x="22.5" y="13" width="2.4" height="2.4" rx="0.5" fill="#FF9E00"/>
+        <rect x="26.6" y="13" width="2.4" height="2.4" rx="0.5" fill="#00B4D8"/>
+        <rect x="22.5" y="18" width="2.4" height="2.4" rx="0.5" fill="#00B4D8"/>
+        <rect x="26.6" y="18" width="2.4" height="2.4" rx="0.5" fill="#FF9E00"/>
+        <line x1="2" y1="44" x2="50" y2="44" stroke="white" stroke-width="1.5" stroke-opacity="0.3"/>
+      </svg>
+    </div>
+    <div>
+      <h1 id="hud-name">DEVTROPOLIS</h1>
+      <div class="sub" id="hud-sub">GITHUB CITY</div>
+    </div>
+  </div>
+  <div id="hud-stats">
+    <span>REPOS <b id="stat-districts">0</b></span>
+    <span>STARS <b id="stat-active">0</b></span>
+    <span>FPS <b id="stat-fps">60</b></span>
+  </div>
+</div>
+
+<!-- ===== PROFILE STRIP ===== -->
+<div id="profile-strip">
+  <div class="ps-avatar" id="ps-avatar"></div>
+  <div class="ps-info">
+    <div class="ps-name" id="ps-name">—</div>
+    <div class="ps-meta" id="ps-meta">—</div>
+  </div>
+</div>
+
+<!-- ===== LANG LEGEND ===== -->
+<div id="lang-legend">
+  <div class="ll-title">LANGUAGE MAP</div>
+  <div id="ll-items"></div>
+</div>
+
+<!-- ===== DISTRICT TAG ===== -->
+<div id="district-tag"><span class="name"></span><br/><span class="status"></span></div>
+
+<!-- ===== INFO PANEL ===== -->
+<div id="info-panel">
+  <span class="ip-close">✕</span>
+  <div class="ip-name" id="ip-name">—</div>
+  <div class="ip-lang" id="ip-lang">—</div>
+  <div class="ip-row"><span>STARS</span><b class="ip-stars">—</b></div>
+  <div class="ip-row"><span>FORKS</span><b class="ip-forks">—</b></div>
+  <div class="ip-row"><span>ISSUES</span><b class="ip-issues">—</b></div>
+  <div class="ip-row"><span>SIZE</span><b class="ip-size">—</b></div>
+  <a class="ip-link" id="ip-link" href="#" target="_blank" rel="noopener">↗ OPEN ON GITHUB</a>
+</div>
+
+<!-- ===== HUD BOTTOM ===== -->
+<div id="hud-bottom" style="display:none">
+  <div class="console"><span class="prompt">&gt;_</span><span id="console-text">City engine ready</span></div>
+  <div class="toggle" id="daynight-toggle"><span id="daynight-icon">☾</span><span id="daynight-label">NIGHT</span></div>
+</div>
+
+<!-- ===== SHARE BUTTON ===== -->
+<button id="btn-share">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+  SHARE CITY
+</button>
+
+<div id="reveal-flash" style="position:absolute;inset:0;z-index:70;background:#fff;opacity:0;pointer-events:none;transition:opacity 0.15s ease"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ========================================
+//  LANGUAGE → COLOR MAP
+// ========================================
+const LANG_COLORS = {
+  JavaScript: 0xF7DF1E, TypeScript: 0x3178C6, Python: 0x3776AB,
+  Rust:       0xDEA584, Go:         0x00ADD8, Java:        0xED8B00,
+  'C++':      0x00599C, C:          0xA8B9CC, 'C#':        0x239120,
+  Ruby:       0xCC342D, PHP:        0x777BB4, Swift:       0xF05138,
+  Kotlin:     0x7F52FF, Dart:       0x00B4AB, Scala:       0xDC322F,
+  HTML:       0xE34F26, CSS:        0x1572B6, Shell:       0x89E051,
+  Vue:        0x42B883, Svelte:     0xFF3E00, Elixir:      0x6E4A7E,
+  Haskell:    0x5E5086, Clojure:    0x5881D8, R:           0x276DC3,
+  MATLAB:     0xE16737, Lua:        0x000080, Perl:        0x39457E,
+};
+const LANG_HEX_COLORS = {
+  JavaScript:'#F7DF1E', TypeScript:'#3178C6', Python:'#3776AB',
+  Rust:'#DEA584', Go:'#00ADD8', Java:'#ED8B00',
+  'C++':'#00599C', C:'#A8B9CC', 'C#':'#239120',
+  Ruby:'#CC342D', PHP:'#777BB4', Swift:'#F05138',
+  Kotlin:'#7F52FF', Dart:'#00B4AB', Scala:'#DC322F',
+  HTML:'#E34F26', CSS:'#1572B6', Shell:'#89E051',
+  Vue:'#42B883', Svelte:'#FF3E00', Elixir:'#6E4A7E',
+  Haskell:'#5E5086', Clojure:'#5881D8', R:'#276DC3',
+};
+function langToColor(lang) {
+  return LANG_COLORS[lang] || 0x4455AA;
+}
+function langToHex(lang) {
+  return LANG_HEX_COLORS[lang] || '#4455AA';
+}
+
+// ========================================
+//  SEEDED RNG (untuk kota yang konsisten per username)
+// ========================================
+function makeRng(seed) {
+  let s = typeof seed === 'string'
+    ? [...seed].reduce((a, c) => Math.imul(31, a) + c.charCodeAt(0) | 0, 0)
+    : seed | 0;
+  return function() {
+    s = Math.imul(48271, s) | 0;
+    return ((s >>> 0) / 0x100000000);
+  };
+}
+
+// ========================================
+//  GITHUB DATA FETCH via Anthropic API
+//  Uses Claude with web_search to fetch GitHub data.
+//  Works from any origin (file://, content://, localhost, etc.)
+//  because Anthropic API supports CORS.
+// ========================================
+function makeDemoData(username) {
+  // Generate deterministic demo city when API is unreachable
+  const rng = makeRng(username);
+  const langs = ['JavaScript','TypeScript','Python','Go','Rust','Java','C++','Ruby','PHP','Swift'];
+  const repos = [];
+  const repoCount = 10 + Math.floor(rng() * 30);
+  for (let i = 0; i < repoCount; i++) {
+    const lang = langs[Math.floor(rng() * langs.length)];
+    repos.push({
+      name: `project-${username}-${i+1}`,
+      description: `A ${lang} project`,
+      language: lang,
+      stargazers_count: Math.floor(rng() * 500),
+      forks_count: Math.floor(rng() * 100),
+      open_issues_count: Math.floor(rng() * 20),
+      size: Math.floor(rng() * 10000),
+      html_url: `https://github.com/${username}/project-${i+1}`,
+      updated_at: new Date().toISOString()
+    });
+  }
+  const langCount = {};
+  let totalStars = 0;
+  repos.forEach(r => {
+    totalStars += r.stargazers_count;
+    langCount[r.language] = (langCount[r.language] || 0) + 1;
+  });
+  const topLangs = Object.entries(langCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([l])=>l);
+  return {
+    user: {
+      login: username,
+      name: username,
+      avatar_url: `https://avatars.githubusercontent.com/u/${Math.floor(rng()*1000000)}`,
+      public_repos: repoCount,
+      followers: Math.floor(rng() * 1000),
+      following: Math.floor(rng() * 500),
+      bio: `Demo mode — ${username}'s city (offline)`,
+      html_url: `https://github.com/${username}`
+    },
+    repos, totalStars, topLangs, langCount,
+    isDemo: true
+  };
+}
+
+// Safe timeout wrapper — AbortSignal.timeout(...) cannot be structured-cloned
+// when fetch is proxied through postMessage (e.g. inside an iframe/webview),
+// which throws "DataCloneError: AbortSignal object could not be cloned" before
+// the request is even sent. A manually-created AbortController avoids that.
+function fetchWithTimeout(url, opts = {}, ms = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+async function fetchGitHubData(username) {
+  function summarize(user, repos) {
+    const repoList = Array.isArray(repos) ? repos : [];
+    const langCount = {};
+    let totalStars = 0;
+    repoList.forEach(r => {
+      totalStars += r.stargazers_count || 0;
+      if (r.language) langCount[r.language] = (langCount[r.language] || 0) + 1;
+    });
+    const topLangs = Object.entries(langCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([l])=>l);
+    return { user, repos: repoList, totalStars, topLangs, langCount };
+  }
+
+  async function ghFetch(url) {
+    const r = await fetchWithTimeout(url, { headers: { 'Accept': 'application/vnd.github.v3+json' } }, 12000);
+    if (r.status === 404) throw new Error('not-found');
+    if (r.status === 403 || r.status === 429) throw new Error('rate-limit');
+    if (!r.ok) throw new Error('api-error-' + r.status);
+    return r.json();
+  }
+
+  // Single, simple attempt at the real GitHub API (it's CORS-friendly, no proxy needed).
+  // Any failure — network block, offline, rate limit, typo'd username — falls straight
+  // through to local demo data, so the city always builds no matter what's typed in.
+  try {
+    const [user, repos] = await Promise.all([
+      ghFetch(`https://api.github.com/users/${username}`),
+      ghFetch(`https://api.github.com/users/${username}/repos?per_page=100&sort=updated`).catch(() => [])
+    ]);
+    return summarize(user, repos);
+  } catch (e) {
+    console.warn('[DevTropolis] live GitHub fetch failed (' + e.message + ') — using demo data for "' + username + '"');
+    return makeDemoData(username);
+  }
+}
+
+// ========================================
+//  BOOT SEQUENCE
+// ========================================
+function runBoot(steps, onDone) {
+  const bar = document.getElementById('ld-bar');
+  const msg = document.getElementById('ld-msg');
+  let i = 0;
+  function next() {
+    if (i >= steps.length) { setTimeout(onDone, 300); return; }
+    const s = steps[i++];
+    msg.classList.add('fade');
+    setTimeout(() => {
+      msg.textContent = s.msg; msg.classList.remove('fade');
+      bar.style.width = s.pct + '%';
+      setTimeout(next, i === steps.length ? 500 : 300 + Math.random() * 200);
+    }, 180);
+  }
+  next();
+}
+
+// ========================================
+//  3D CITY BUILDER
+// ========================================
+function buildCity(ghData) {
+  const { user, repos, totalStars, topLangs } = ghData;
+  const rng = makeRng(user.login);
+
+  const canvas = document.getElementById('scene-canvas');
+  canvas.style.display = 'block';
+
+  const scene = new THREE.Scene();
+  const COL = { bgNight:0x03045E, bgDay:0x3a5fa0, amber:0xFF9E00, deepOrange:0xFF5400, ocean:0x00B4D8, pale:0x90E0EF, ground:0x070A4A };
+
+  scene.fog = new THREE.FogExp2(COL.bgNight, 0.01);
+  scene.background = new THREE.Color(COL.bgNight);
+
+  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(60, 46, 95);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  // Lights
+  const hemi = new THREE.HemisphereLight(0x6688ff, 0x070A4A, 0.55); scene.add(hemi);
+  const moon = new THREE.DirectionalLight(0xbcd4ff, 0.8);
+  moon.position.set(-40, 80, -30); moon.castShadow = true;
+  moon.shadow.mapSize.set(1024, 1024);
+  moon.shadow.camera.left = moon.shadow.camera.bottom = -120;
+  moon.shadow.camera.right = moon.shadow.camera.top = 120;
+  moon.shadow.camera.far = 300; scene.add(moon);
+  const ambAccent = new THREE.PointLight(COL.amber, 1.2, 140);
+  ambAccent.position.set(0, 30, 0); scene.add(ambAccent);
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 400),
+    new THREE.MeshStandardMaterial({ color:COL.ground, roughness:0.9, metalness:0.1 })
+  );
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  const grid = new THREE.GridHelper(400, 80, 0x1c2a8c, 0x0c1560);
+  grid.position.y = 0.02; scene.add(grid);
+
+  // Roads
+  const roadMat = new THREE.MeshStandardMaterial({ color:0x050726, roughness:0.7 });
+  const laneMarkMat = new THREE.MeshBasicMaterial({ color:COL.amber, transparent:true, opacity:0.5 });
+  const blockSize = 18, roadWidth = 4, gridCount = 7;
+  const roadsGroup = new THREE.Group();
+  for (let i = -gridCount; i <= gridCount; i++) {
+    const rh = new THREE.Mesh(new THREE.PlaneGeometry(gridCount*2*blockSize+roadWidth, roadWidth), roadMat);
+    rh.rotation.x = -Math.PI/2; rh.position.set(0, 0.03, i*blockSize); roadsGroup.add(rh);
+    const rv = new THREE.Mesh(new THREE.PlaneGeometry(roadWidth, gridCount*2*blockSize+roadWidth), roadMat);
+    rv.rotation.x = -Math.PI/2; rv.position.set(i*blockSize, 0.03, 0); roadsGroup.add(rv);
+    for (let m = -gridCount*blockSize; m < gridCount*blockSize; m += 4) {
+      const dh = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.25), laneMarkMat);
+      dh.rotation.x = -Math.PI/2; dh.position.set(m+1, 0.04, i*blockSize); roadsGroup.add(dh);
+      const dv = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 1.4), laneMarkMat);
+      dv.rotation.x = -Math.PI/2; dv.position.set(i*blockSize, 0.04, m+1); roadsGroup.add(dv);
+    }
+  }
+  scene.add(roadsGroup);
+
+  // ---- Window texture ----
+  function makeWinTex(baseHex) {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+    const ctx = c.getContext('2d');
+    const r = (baseHex >> 16) & 0xff, g = (baseHex >> 8) & 0xff, b = baseHex & 0xff;
+    ctx.fillStyle = `rgb(${Math.floor(r*0.3)},${Math.floor(g*0.3)},${Math.floor(b*0.3)})`;
+    ctx.fillRect(0, 0, 64, 64);
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 6; col++) {
+        const lit = rng() > 0.42;
+        if (lit) {
+          const t = rng();
+          if (t < 0.5) ctx.fillStyle = `rgb(${r},${Math.floor(g*0.9)},${Math.floor(b*0.4)})`;
+          else if (t < 0.8) ctx.fillStyle = '#90E0EF';
+          else ctx.fillStyle = '#FF9E00';
+          ctx.globalAlpha = 0.55 + rng() * 0.45;
+        } else {
+          ctx.fillStyle = `rgb(${Math.floor(r*0.15)},${Math.floor(g*0.15)},${Math.floor(b*0.2)})`;
+          ctx.globalAlpha = 1;
+        }
+        ctx.fillRect(col*64/6 + 1.2, row*64/8 + 1.2, 64/6 - 2.4, 64/8 - 2.4);
+      }
+    }
+    ctx.globalAlpha = 1;
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  // ---- Build towers from repos ----
+  const buildingsGroup = new THREE.Group();
+  const districts = [];
+
+  // Sort repos: most starred first
+  const sortedRepos = [...repos].sort((a, b) => b.stargazers_count - a.stargazers_count);
+
+  // Limit to grid capacity (~100 slots)
+  const reposToBuild = sortedRepos.slice(0, 96);
+
+  // Determine grid size based on repo count
+  const gc = Math.min(gridCount, Math.max(3, Math.ceil(Math.sqrt(reposToBuild.length / 0.6))));
+
+  // Slot grid — fill systematically
+  const slots = [];
+  for (let bx = -gc+1; bx < gc; bx++) {
+    for (let bz = -gc+1; bz < gc; bz++) {
+      if (Math.abs(bx) <= 0 && Math.abs(bz) <= 0) continue; // skip center
+      slots.push([bx, bz]);
+    }
+  }
+  // Shuffle slots with seeded rng
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [slots[i], slots[j]] = [slots[j], slots[i]];
+  }
+
+  let beaconLightCount = 0;
+  const MAX_BUILDING_BEACON_LIGHTS = 6; // hard cap so we never blow past mobile GPUs' shader uniform limit
+
+  reposToBuild.forEach((repo, idx) => {
+    if (idx >= slots.length) return;
+    const [bx, bz] = slots[idx];
+    const cx = bx * blockSize, cz = bz * blockSize;
+    const lot = blockSize - roadWidth - 1.5;
+
+    // Map repo data to visual properties
+    const stars = repo.stargazers_count || 0;
+    const lang = repo.language || 'Unknown';
+    const baseColor = langToColor(lang);
+
+    // Height proportional to stars (log scale, min 2 floors, max 20)
+    const logStars = Math.log1p(stars);
+    const maxLog = Math.log1p(Math.max(...reposToBuild.map(r => r.stargazers_count || 0), 1));
+    const floors = Math.max(2, Math.round(2 + (logStars / Math.max(maxLog, 1)) * 18));
+    const height = floors * 2.1;
+
+    // Width proportional to fork count
+    const forks = repo.forks_count || 0;
+    const widthFactor = 0.5 + Math.min(forks / Math.max(repo.stargazers_count || 1, 1), 0.5) * 0.4;
+    const w = lot * widthFactor * (0.8 + rng() * 0.2);
+    const d = lot * widthFactor * (0.8 + rng() * 0.2);
+
+    const tex = makeWinTex(baseColor);
+    const mat = new THREE.MeshStandardMaterial({
+      color: baseColor, map: tex,
+      emissive: new THREE.Color(baseColor), emissiveMap: tex,
+      emissiveIntensity: 0.45, roughness: 0.55, metalness: 0.35
+    });
+
+    const offX = (rng() - 0.5) * 2, offZ = (rng() - 0.5) * 2;
+    const x = cx + offX, z = cz + offZ;
+
+    const shapeRoll = rng();
+    let mesh;
+    if (shapeRoll < 0.6) {
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(w, height, d), mat);
+      mesh.position.set(x, height/2, z);
+    } else if (shapeRoll < 0.76) {
+      const r2 = Math.min(w, d) / 2;
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(r2*0.85, r2, height, 16), mat);
+      mesh.position.set(x, height/2, z);
+    } else if (shapeRoll < 0.9) {
+      const grp = new THREE.Group();
+      let curH = 0, tw = w, td = d;
+      const tiers = 3 + Math.floor(rng() * 2);
+      for (let t = 0; t < tiers; t++) {
+        const tH = height / tiers;
+        const tm = new THREE.Mesh(new THREE.BoxGeometry(tw, tH, td), mat);
+        tm.position.y = curH + tH/2; tm.castShadow = true; tm.receiveShadow = true;
+        grp.add(tm); curH += tH; tw *= 0.72; td *= 0.72;
+      }
+      grp.position.set(x, 0, z); mesh = grp;
+    } else {
+      const r2 = Math.min(w, d) * 0.6;
+      mesh = new THREE.Mesh(new THREE.ConeGeometry(r2, height, 4), mat);
+      mesh.rotation.y = Math.PI/4; mesh.position.set(x, height/2, z);
+    }
+
+    if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
+    else mesh.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+    buildingsGroup.add(mesh);
+
+    // Rooftop beacon for starred repos (real PointLight capped — too many tank mobile GPU shaders)
+    if (stars > 10 && height > 16 && rng() > 0.3) {
+      if (beaconLightCount < MAX_BUILDING_BEACON_LIGHTS) {
+        const bLight = new THREE.PointLight(baseColor, 1.4, 16);
+        bLight.position.set(x, height + 1.2, z);
+        buildingsGroup.add(bLight);
+        beaconLightCount++;
+      }
+      const tip = new THREE.Mesh(
+        new THREE.ConeGeometry(0.45, 2, 6),
+        new THREE.MeshStandardMaterial({ color:baseColor, emissive:baseColor, emissiveIntensity:1.2 })
+      );
+      tip.position.set(x, height + 1, z); buildingsGroup.add(tip);
+    }
+
+    districts.push({
+      mesh, name: repo.name, floors, height: height.toFixed(1),
+      lang, stars, forks, issues: repo.open_issues_count || 0,
+      size: repo.size || 0, url: repo.html_url,
+      description: repo.description
+    });
+  });
+
+  scene.add(buildingsGroup);
+
+  // ---- River ----
+  const riverCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-140,0.05,-50), new THREE.Vector3(-80,0.05,-18),
+    new THREE.Vector3(-30,0.05,-32), new THREE.Vector3(15,0.05,-8),
+    new THREE.Vector3(75,0.05,-22), new THREE.Vector3(140,0.05,-5)
+  ]);
+  const rPts = riverCurve.getPoints(80);
+  const rShape = [];
+  for (let i = 0; i < rPts.length-1; i++) {
+    const p0=rPts[i], p1=rPts[i+1];
+    const dir = new THREE.Vector2(p1.x-p0.x, p1.z-p0.z).normalize();
+    const n = new THREE.Vector2(-dir.y, dir.x).multiplyScalar(7);
+    rShape.push([p0.x+n.x, p0.z+n.y]);
+  }
+  for (let i = rPts.length-1; i > 0; i--) {
+    const p0=rPts[i], p1=rPts[i-1];
+    const dir = new THREE.Vector2(p1.x-p0.x, p1.z-p0.z).normalize();
+    const n = new THREE.Vector2(-dir.y, dir.x).multiplyScalar(-7);
+    rShape.push([p0.x+n.x, p0.z+n.y]);
+  }
+  const riverGeo = new THREE.ShapeGeometry(new THREE.Shape(rShape.map(p => new THREE.Vector2(p[0],p[1]))));
+  const river = new THREE.Mesh(riverGeo, new THREE.MeshStandardMaterial({
+    color:0x023e7d, roughness:0.15, metalness:0.6, emissive:0x012a55, emissiveIntensity:0.4, transparent:true, opacity:0.92
+  }));
+  river.rotation.x = -Math.PI/2; river.position.y = 0.06; river.receiveShadow = true; scene.add(river);
+
+  // ---- Central Plaza (Beacon = #1 repo or account) ----
+  const plazaBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(9, 9.4, 0.4, 48),
+    new THREE.MeshStandardMaterial({ color:0x0c1666, roughness:0.6 })
+  );
+  plazaBase.position.y = 0.2; plazaBase.receiveShadow = true;
+  scene.add(plazaBase);
+
+  // Beacon height = followers (capped)
+  const beaconH = 20 + Math.min(user.followers || 0, 200) * 0.05;
+  const beaconTower = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.6, 1.4, beaconH, 8),
+    new THREE.MeshStandardMaterial({ color:COL.amber, emissive:COL.deepOrange, emissiveIntensity:0.6, metalness:0.6, roughness:0.3 })
+  );
+  beaconTower.position.y = beaconH/2; beaconTower.castShadow = true; scene.add(beaconTower);
+
+  const beaconGlow = new THREE.PointLight(COL.amber, 2.2, 70);
+  beaconGlow.position.y = beaconH; scene.add(beaconGlow);
+
+  for (let i = 0; i < 2; i++) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(11+i*4, 0.08, 8, 64),
+      new THREE.MeshBasicMaterial({ color:COL.ocean, transparent:true, opacity:0.32-i*0.1 })
+    );
+    ring.rotation.x = Math.PI/2; ring.position.y = 0.3; scene.add(ring);
+  }
+
+  districts.push({ mesh:beaconTower, name:`@${user.login} HQ`, floors:Math.round(beaconH/2.1), height:beaconH.toFixed(1), lang:'Core', stars:totalStars, forks:0, issues:0, size:0, url:`https://github.com/${user.login}`, description: user.bio || 'GitHub Profile' });
+
+  // ---- Street Lights ----
+  const slGroup = new THREE.Group();
+  const lampMat = new THREE.MeshStandardMaterial({ color:0x222a55, metalness:0.7, roughness:0.4 });
+  const lampHead = new THREE.MeshStandardMaterial({ color:COL.amber, emissive:COL.amber, emissiveIntensity:1.4 });
+  for (let i = -gridCount; i <= gridCount; i++) {
+    for (let j = -gridCount; j <= gridCount; j += 2) {
+      if ((i+j) % 3 !== 0) continue;
+      const lx = i*blockSize + roadWidth/2 + 1.2, lz = j*blockSize;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.2, 6), lampMat);
+      pole.position.set(lx, 2.1, lz); pole.castShadow = true; slGroup.add(pole);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), lampHead);
+      head.position.set(lx, 4.25, lz); slGroup.add(head);
+      // Note: intentionally no real PointLight here — street lights are purely
+      // emissive-material glow. Adding a light per lamp post (dozens of them)
+      // blows past mobile GPUs' MAX_FRAGMENT_UNIFORM_VECTORS and breaks the shader.
+    }
+  }
+  scene.add(slGroup);
+
+  // ---- Vehicles (count ~ commit frequency proxy) ----
+  const vGroup = new THREE.Group();
+  const vehicles = [];
+  const vColors = [COL.amber, COL.ocean, 0xffffff, COL.deepOrange];
+  const roadLines = [];
+  for (let i = -gridCount; i <= gridCount; i++) {
+    roadLines.push({axis:'x', pos:i*blockSize});
+    roadLines.push({axis:'z', pos:i*blockSize});
+  }
+  const vCount = Math.min(8 + Math.floor((user.public_repos||0) / 5), 32);
+  for (let i = 0; i < vCount; i++) {
+    const line = roadLines[Math.floor(rng() * roadLines.length)];
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 0.5, 0.85),
+      new THREE.MeshStandardMaterial({ color:vColors[Math.floor(rng()*4)], emissive:COL.amber, emissiveIntensity:0.15, metalness:0.5, roughness:0.4 })
+    );
+    body.castShadow = true;
+    const range = gridCount * blockSize, dir = rng() > 0.5 ? 1 : -1;
+    let x, z;
+    if (line.axis === 'x') { z = line.pos + dir; x = (rng()-0.5)*range*2; body.rotation.y = dir > 0 ? 0 : Math.PI; }
+    else { x = line.pos + dir; z = (rng()-0.5)*range*2; body.rotation.y = (dir > 0 ? 1 : -1)*Math.PI/2; }
+    body.position.set(x, 0.4, z);
+    vGroup.add(body);
+    vehicles.push({ mesh:body, axis:line.axis, dir, speed:6+rng()*6, range });
+  }
+  scene.add(vGroup);
+
+  // ---- Aircraft ----
+  const aircraft = [];
+  const acGroup = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const ac = new THREE.Group();
+    const hull = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.6, 0.6, 3, 8),
+      new THREE.MeshStandardMaterial({ color:0x0e1a4a, emissive:COL.ocean, emissiveIntensity:0.3, metalness:0.7 })
+    );
+    hull.rotation.z = Math.PI/2; ac.add(hull);
+    // Wingtip beacons: small emissive spheres, not real PointLights — every extra
+    // light eats into mobile GPUs' tight shader uniform budget, and these add up
+    // fast across multiple aircraft.
+    const wingLightL = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 8, 8),
+      new THREE.MeshBasicMaterial({ color: COL.amber })
+    );
+    wingLightL.position.set(-1.6, 0, 0);
+    ac.add(wingLightL);
+    const wingLightR = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 8, 8),
+      new THREE.MeshBasicMaterial({ color: COL.ocean })
+    );
+    wingLightR.position.set(1.6, 0, 0);
+    ac.add(wingLightR);
+    ac.position.set((rng()-0.5)*160, 45+rng()*25, (rng()-0.5)*160);
+    ac.userData = { angle:rng()*Math.PI*2, radius:60+rng()*50, speed:0.08+rng()*0.07, y:ac.position.y };
+    acGroup.add(ac); aircraft.push(ac);
+  }
+  scene.add(acGroup);
+
+  // ---- Drones ----
+  const droneGroup = new THREE.Group();
+  const droneGeo = new THREE.OctahedronGeometry(0.4, 0);
+  for (let i = 0; i < 14; i++) {
+    const dc = langToColor(topLangs[i % Math.max(topLangs.length, 1)] || null);
+    const m = new THREE.Mesh(droneGeo, new THREE.MeshStandardMaterial({ color:dc, emissive:dc, emissiveIntensity:0.9 }));
+    m.position.set((rng()-0.5)*140, 20+rng()*40, (rng()-0.5)*140);
+    m.userData = { speed:0.2+rng()*0.4, radius:1+rng()*2, phase:rng()*Math.PI*2, baseY:m.position.y };
+    droneGroup.add(m);
+  }
+  scene.add(droneGroup);
+
+  // ---- Clouds ----
+  const cloudGroup = new THREE.Group();
+  const cloudMat = new THREE.MeshBasicMaterial({ color:0x6677cc, transparent:true, opacity:0.15 });
+  for (let i = 0; i < 8; i++) {
+    const cl = new THREE.Group();
+    for (let p = 0; p < 3+Math.floor(rng()*3); p++) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(4+rng()*3, 8, 8), cloudMat);
+      puff.position.set((rng()-0.5)*10, (rng()-0.5)*2, (rng()-0.5)*6);
+      cl.add(puff);
+    }
+    cl.position.set((rng()-0.5)*200, 55+rng()*20, (rng()-0.5)*200);
+    cl.userData.speed = 0.5+rng()*0.8;
+    cloudGroup.add(cl);
+  }
+  scene.add(cloudGroup);
+
+  // ---- Stars ----
+  const starGeo = new THREE.BufferGeometry();
+  const sp = new Float32Array(900*3);
+  for (let i = 0; i < 900; i++) {
+    const r2 = 250+rng()*150, th = rng()*Math.PI*2, ph = rng()*Math.PI*0.5;
+    sp[i*3] = r2*Math.sin(ph)*Math.cos(th);
+    sp[i*3+1] = 40+r2*Math.cos(ph)*0.6;
+    sp[i*3+2] = r2*Math.sin(ph)*Math.sin(th);
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0xffffff, size:0.7, transparent:true, opacity:0.7 }));
+  scene.add(stars);
+
+  // ========================================
+  //  CAMERA CONTROLS
+  // ========================================
+  let isDragging = false, prevX = 0, prevY = 0;
+  let camAngle = Math.atan2(camera.position.z, camera.position.x);
+  let camDist = Math.sqrt(camera.position.x**2 + camera.position.z**2);
+  let camHeight = camera.position.y;
+  let targetAngle = camAngle, targetDist = camDist, targetHeight = camHeight;
+  let autoRotate = true;
+
+  function pDown(x, y) { isDragging = true; autoRotate = false; prevX = x; prevY = y; }
+  function pMove(x, y) {
+    if (!isDragging) return;
+    targetAngle -= (x-prevX)*0.005;
+    targetHeight = Math.max(8, Math.min(120, targetHeight+(y-prevY)*0.2));
+    prevX = x; prevY = y;
+  }
+  function pUp() { isDragging = false; }
+
+  canvas.addEventListener('mousedown', e => pDown(e.clientX, e.clientY));
+  window.addEventListener('mousemove', e => pMove(e.clientX, e.clientY));
+  window.addEventListener('mouseup', pUp);
+
+  let lastPinch = null;
+  function getPinchDist(t) { const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); }
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { pDown(e.touches[0].clientX, e.touches[0].clientY); lastPinch=null; }
+    else if (e.touches.length === 2) { isDragging=false; autoRotate=false; lastPinch=getPinchDist(e.touches); }
+  }, {passive:true});
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && !lastPinch) pMove(e.touches[0].clientX, e.touches[0].clientY);
+    else if (e.touches.length === 2) {
+      const nd = getPinchDist(e.touches);
+      if (lastPinch) targetDist = Math.max(25, Math.min(220, targetDist+(lastPinch-nd)*0.3));
+      lastPinch = nd;
+    }
+  }, {passive:true});
+  canvas.addEventListener('touchend', e => {
+    if (e.touches.length === 0) { pUp(); lastPinch=null; }
+    else if (e.touches.length === 1) { lastPinch=null; prevX=e.touches[0].clientX; prevY=e.touches[0].clientY; }
+  });
+  canvas.addEventListener('wheel', e => { targetDist = Math.max(25, Math.min(220, targetDist+e.deltaY*0.05)); }, {passive:true});
+
+  // ========================================
+  //  RAYCAST / INSPECT
+  // ========================================
+  const raycaster = new THREE.Raycaster();
+  const mNDC = new THREE.Vector2();
+  const tag = document.getElementById('district-tag');
+  const tagName = tag.querySelector('.name');
+  const tagStatus = tag.querySelector('.status');
+
+  function findDistrict(obj) {
+    let o = obj;
+    while (o) { const d = districts.find(dd => dd.mesh === o); if (d) return d; o = o.parent; }
+    return null;
+  }
+  function hover(cx, cy) {
+    mNDC.x = (cx/window.innerWidth)*2-1; mNDC.y = -(cy/window.innerHeight)*2+1;
+    raycaster.setFromCamera(mNDC, camera);
+    const hits = raycaster.intersectObjects(buildingsGroup.children.concat([beaconTower]), true);
+    if (hits.length) {
+      const d = findDistrict(hits[0].object);
+      if (d) {
+        tag.style.left = cx+'px'; tag.style.top = cy+'px';
+        tagName.textContent = d.name;
+        tagStatus.textContent = `${d.lang} · ⭐${d.stars} · ${d.floors}F`;
+        tag.style.opacity = 1; return;
+      }
+    }
+    tag.style.opacity = 0;
+  }
+  canvas.addEventListener('mousemove', e => hover(e.clientX, e.clientY));
+
+  const infoPanel = document.getElementById('info-panel');
+  infoPanel.querySelector('.ip-close').addEventListener('click', () => infoPanel.classList.remove('visible'));
+
+  function inspect(cx, cy) {
+    mNDC.x = (cx/window.innerWidth)*2-1; mNDC.y = -(cy/window.innerHeight)*2+1;
+    raycaster.setFromCamera(mNDC, camera);
+    const hits = raycaster.intersectObjects(buildingsGroup.children.concat([beaconTower]), true);
+    if (hits.length) {
+      const d = findDistrict(hits[0].object);
+      if (d) {
+        document.getElementById('ip-name').textContent = d.name;
+        document.getElementById('ip-lang').textContent = d.description || d.lang;
+        infoPanel.querySelector('.ip-stars').textContent = d.stars.toLocaleString();
+        infoPanel.querySelector('.ip-forks').textContent = d.forks.toLocaleString();
+        infoPanel.querySelector('.ip-issues').textContent = d.issues;
+        infoPanel.querySelector('.ip-size').textContent = d.size > 1024 ? (d.size/1024).toFixed(1)+' MB' : d.size+' KB';
+        document.getElementById('ip-link').href = d.url;
+        infoPanel.classList.add('visible');
+        document.getElementById('console-text').textContent = `Inspecting ${d.name}…`;
+      }
+    }
+  }
+  canvas.addEventListener('click', e => { if (!isDragging) inspect(e.clientX, e.clientY); });
+  let tsX=0, tsY=0;
+  canvas.addEventListener('touchstart', e => { if(e.touches.length===1){tsX=e.touches[0].clientX;tsY=e.touches[0].clientY;} }, {passive:true});
+  canvas.addEventListener('touchend', e => {
+    if (e.changedTouches.length===1 && !lastPinch) {
+      const t = e.changedTouches[0];
+      if (Math.abs(t.clientX-tsX)<10 && Math.abs(t.clientY-tsY)<10) inspect(t.clientX, t.clientY);
+    }
+  });
+
+  // ========================================
+  //  DAY/NIGHT TOGGLE
+  // ========================================
+  let isDay = false;
+  const toggleEl = document.getElementById('daynight-toggle');
+  const dnIcon = document.getElementById('daynight-icon');
+  const dnLabel = document.getElementById('daynight-label');
+  toggleEl.addEventListener('click', () => {
+    isDay = !isDay;
+    const bg = new THREE.Color(isDay ? COL.bgDay : COL.bgNight);
+    scene.fog.color.copy(bg); scene.background = bg;
+    moon.intensity = isDay ? 1.3 : 0.8;
+    moon.color.set(isDay ? 0xfff3d6 : 0xbcd4ff);
+    hemi.intensity = isDay ? 0.9 : 0.55;
+    stars.material.opacity = isDay ? 0 : 0.7;
+    dnIcon.textContent = isDay ? '☀' : '☾';
+    dnLabel.textContent = isDay ? 'DAY' : 'NIGHT';
+    document.getElementById('console-text').textContent = isDay ? 'Daylight cycle — solar grid active' : 'Night cycle — beacon grid active';
+  });
+
+  // ========================================
+  //  RENDER LOOP
+  // ========================================
+  let lastT = performance.now(), fc = 0, fa = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    const now = performance.now(), dt = (now-lastT)/1000; lastT = now;
+    fc++; fa += dt;
+    if (fa >= 0.5) { document.getElementById('stat-fps').textContent = Math.round(fc/fa); fc=0; fa=0; }
+    if (autoRotate) targetAngle += dt*0.04;
+    camAngle += (targetAngle-camAngle)*0.08;
+    camDist  += (targetDist-camDist)*0.08;
+    camHeight += (targetHeight-camHeight)*0.08;
+    camera.position.x = Math.cos(camAngle)*camDist;
+    camera.position.z = Math.sin(camAngle)*camDist;
+    camera.position.y = camHeight;
+    camera.lookAt(0, 8, 0);
+
+    beaconGlow.intensity = 2.0 + Math.sin(now*0.002)*0.4;
+    beaconTower.material.emissiveIntensity = 0.5 + Math.sin(now*0.002)*0.2;
+
+    droneGroup.children.forEach(d => {
+      d.position.y = d.userData.baseY + Math.sin(now*0.001*d.userData.speed + d.userData.phase)*d.userData.radius;
+      d.rotation.y += dt*0.6; d.rotation.x += dt*0.3;
+    });
+    vehicles.forEach(v => {
+      if (v.axis === 'x') {
+        v.mesh.position.x += v.dir*v.speed*dt;
+        if (v.mesh.position.x > v.range) v.mesh.position.x = -v.range;
+        if (v.mesh.position.x < -v.range) v.mesh.position.x = v.range;
+      } else {
+        v.mesh.position.z += v.dir*v.speed*dt;
+        if (v.mesh.position.z > v.range) v.mesh.position.z = -v.range;
+        if (v.mesh.position.z < -v.range) v.mesh.position.z = v.range;
+      }
+    });
+    aircraft.forEach(ac => {
+      ac.userData.angle += dt*ac.userData.speed;
+      ac.position.x = Math.cos(ac.userData.angle)*ac.userData.radius;
+      ac.position.z = Math.sin(ac.userData.angle)*ac.userData.radius;
+      ac.position.y = ac.userData.y + Math.sin(now*0.0006+ac.userData.angle)*2;
+      ac.rotation.y = -ac.userData.angle+Math.PI/2;
+    });
+    cloudGroup.children.forEach(c => { c.position.x += c.userData.speed*dt; if (c.position.x>110) c.position.x=-110; });
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  return { districts, repos: reposToBuild, topLangs };
+}
+
+// ========================================
+//  HUD UPDATER
+// ========================================
+function updateHUD(ghData, builtData) {
+  const { user, totalStars, topLangs } = ghData;
+
+  // Demo mode notice
+  if (ghData.isDemo) {
+    document.getElementById('hud-sub') && (document.getElementById('hud-sub').style.color = '#FF9E00');
+    // Show toast
+    const toast = document.createElement('div');
+    toast.textContent = '⚠ DEMO MODE — buka via server untuk data real';
+    toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(255,100,0,0.9);color:#fff;padding:8px 16px;border-radius:8px;font-size:11px;z-index:999;font-family:monospace;white-space:nowrap;pointer-events:none;';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 6000);
+  }
+
+  // Title
+  document.getElementById('hud-name').textContent = (user.name || user.login).toUpperCase();
+  document.getElementById('hud-sub').textContent = ghData.isDemo ? `@${user.login} · DEMO CITY` : `@${user.login} · GITHUB CITY`;
+  document.getElementById('stat-districts').textContent = builtData.repos.length;
+  document.getElementById('stat-active').textContent = totalStars > 999 ? (totalStars/1000).toFixed(1)+'k' : totalStars;
+
+  // Avatar in logo & loading core
+  if (user.avatar_url) {
+    const logoEl = document.getElementById('hud-logo');
+    const img1 = document.createElement('img');
+    img1.src = user.avatar_url; img1.alt = user.login;
+    logoEl.innerHTML = ''; logoEl.appendChild(img1);
+    // Also loading core avatar
+    const coreEl = document.getElementById('ld-core');
+    const img2 = document.createElement('img');
+    img2.src = user.avatar_url; img2.alt = user.login;
+    coreEl.innerHTML = ''; coreEl.appendChild(img2);
+  }
+
+  // Profile strip
+  const strip = document.getElementById('profile-strip');
+  const psAvatar = document.getElementById('ps-avatar');
+  if (user.avatar_url) {
+    const avImg = document.createElement('img');
+    avImg.src = user.avatar_url; avImg.alt = user.login;
+    psAvatar.innerHTML = ''; psAvatar.appendChild(avImg);
+  }
+  document.getElementById('ps-name').textContent = user.name || user.login;
+  document.getElementById('ps-meta').textContent =
+    [user.location, `${user.followers} followers`, `${user.public_repos} repos`].filter(Boolean).join(' · ');
+  strip.classList.add('visible');
+
+  // Language legend
+  const legend = document.getElementById('lang-legend');
+  const llItems = document.getElementById('ll-items');
+  llItems.innerHTML = '';
+  topLangs.slice(0, 5).forEach(lang => {
+    const row = document.createElement('div');
+    row.className = 'll-item';
+    row.innerHTML = `<div class="ll-dot" style="background:${langToHex(lang)}"></div><span class="ll-label">${lang}</span>`;
+    llItems.appendChild(row);
+  });
+  if (topLangs.length) legend.classList.add('visible');
+
+  // Show HUD elements
+  document.getElementById('hud-top').style.display = 'flex';
+  document.getElementById('hud-bottom').style.display = 'flex';
+
+  // Console text
+  document.getElementById('console-text').textContent =
+    `${user.login}'s city — ${builtData.repos.length} repos · ⭐${totalStars} stars · tap to inspect`;
+
+  // Share button
+  const shareBtn = document.getElementById('btn-share');
+  shareBtn.classList.add('visible');
+  shareBtn.addEventListener('click', () => {
+    const url = `${location.origin}${location.pathname}?user=${user.login}`;
+    try {
+      if (navigator.share) {
+        navigator.share({ title:`${user.login}'s DevTropolis City`, url }).catch(() => {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+          shareBtn.textContent = '✓ LINK COPIED';
+          setTimeout(() => { shareBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> SHARE CITY`; }, 2000);
+        }).catch(() => {});
+      }
+    } catch (shareErr) {
+      console.warn('[DevTropolis] share/copy failed (expected when opened from a local file):', shareErr.message);
+    }
+  });
+}
+
+// ========================================
+//  ON-SCREEN DEBUG LOG (no DevTools needed)
+// ========================================
+(function () {
+  const box = document.createElement('div');
+  box.id = 'dbg-log';
+  box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;max-height:32vh;overflow:auto;' +
+    'background:rgba(0,0,0,0.85);border:1px solid rgba(255,158,0,0.4);border-radius:8px;' +
+    'padding:8px 10px;font-family:monospace;font-size:10px;line-height:1.4;color:#90E0EF;' +
+    'z-index:99999;white-space:pre-wrap;word-break:break-all;display:none;';
+  document.body.appendChild(box);
+
+  function logLine(kind, args) {
+    box.style.display = 'block';
+    const line = document.createElement('div');
+    line.style.color = kind === 'error' ? '#ff6b6b' : '#FF9E00';
+    line.style.marginBottom = '4px';
+    line.textContent = '[' + kind.toUpperCase() + '] ' + Array.from(args).map(a => {
+      if (a instanceof Error) return a.message + (a.stack ? '\n' + a.stack.split('\n').slice(0,5).join('\n') : '');
+      try { return typeof a === 'object' ? JSON.stringify(a) : String(a); } catch(e) { return String(a); }
+    }).join(' ');
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  const origWarn = console.warn.bind(console);
+  const origError = console.error.bind(console);
+  console.warn = function (...args) { logLine('warn', args); origWarn(...args); };
+  console.error = function (...args) { logLine('error', args); origError(...args); };
+  window.addEventListener('error', e => logLine('error', [e.message + ' @ ' + e.filename + ':' + e.lineno]));
+  window.addEventListener('unhandledrejection', e => logLine('error', ['unhandled promise: ' + (e.reason && e.reason.message || e.reason)]));
+})();
+
+// ========================================
+//  MAIN FLOW
+// ========================================
+async function startCity(username) {
+  const errEl = document.getElementById('sc-error');
+  const btnBuild = document.getElementById('btn-build');
+  const searchScr = document.getElementById('search-screen');
+  const loading = document.getElementById('loading');
+  const flash = document.getElementById('reveal-flash');
+
+  errEl.classList.remove('visible');
+  btnBuild.disabled = true;
+  btnBuild.textContent = '⏳ FETCHING…';
+
+  try {
+    // 1. Fetch GitHub data (happens in background during boot)
+    const ghDataPromise = fetchGitHubData(username.trim());
+
+    // 2. Transition to loading screen
+    searchScr.style.transition = 'opacity 0.35s ease';
+    searchScr.style.opacity = '0';
+    await new Promise(r => setTimeout(r, 380));
+    searchScr.style.display = 'none';
+
+    const ldTitle = document.getElementById('ld-title');
+    const ldSub = document.getElementById('ld-sub');
+    ldTitle.textContent = username.toUpperCase();
+    ldSub.textContent = 'BUILDING YOUR CITY…';
+    loading.style.display = 'flex';
+    loading.style.opacity = '1';
+
+    // 3. Boot sequence
+    const bootSteps = [
+      { pct:15, msg:'FETCHING GITHUB PROFILE…' },
+      { pct:30, msg:'SCANNING REPOSITORIES…' },
+      { pct:50, msg:'ANALYZING LANGUAGES…' },
+      { pct:68, msg:'PLACING DISTRICTS…' },
+      { pct:82, msg:'LIGHTING CITY GRID…' },
+      { pct:95, msg:'SPAWNING VEHICLES…' },
+      { pct:100, msg:'CITY ONLINE ✓' },
+    ];
+
+    const [ghData] = await Promise.all([
+      ghDataPromise,
+      new Promise(r => runBoot(bootSteps, r))
+    ]);
+
+    // Update loading avatar now that we have the data
+    if (ghData.user.avatar_url) {
+      const coreEl = document.getElementById('ld-core');
+      const avImg = document.createElement('img');
+      avImg.src = ghData.user.avatar_url;
+      coreEl.innerHTML = ''; coreEl.appendChild(avImg);
+      ldTitle.textContent = (ghData.user.name || ghData.user.login).toUpperCase();
+    }
+    await new Promise(r => setTimeout(r, 400));
+
+    // 4. Build city
+    const builtData = buildCity(ghData);
+    updateHUD(ghData, builtData);
+
+    // 5. Flash transition
+    flash.style.opacity = '0.8';
+    await new Promise(r => setTimeout(r, 120));
+    flash.style.transition = 'opacity 0.6s ease';
+    flash.style.opacity = '0';
+    loading.style.transition = 'opacity 0.6s ease';
+    loading.style.opacity = '0';
+    await new Promise(r => setTimeout(r, 660));
+    loading.style.display = 'none';
+
+    // 6. Update URL for sharing (best-effort only — fails with SecurityError
+    // when the page is opened from a local file, e.g. content:// / file://,
+    // since those have a null origin and the History API blocks updates there.
+    // That failure is harmless and must not abort the rest of the flow.)
+    try {
+      const newUrl = new URL(location.href);
+      newUrl.searchParams.set('user', ghData.user.login);
+      history.replaceState({}, '', newUrl.toString());
+    } catch (urlErr) {
+      console.warn('[DevTropolis] could not update URL (expected when opened from a local file):', urlErr.message);
+    }
+
+  } catch (err) {
+    // Show error back on search screen (only reached for unexpected errors —
+    // fetchGitHubData itself never throws, it falls back to demo data instead)
+    loading.style.display = 'none';
+    searchScr.style.display = 'flex';
+    searchScr.style.opacity = '1';
+    btnBuild.disabled = false;
+    btnBuild.textContent = '⚡ BUILD MY CITY';
+    console.error('[DevTropolis] unexpected error building city:', err);
+    errEl.textContent = 'Something went wrong building the city — try again';
+    errEl.classList.add('visible');
+  }
+}
+
+// ========================================
+//  SEARCH SCREEN LOGIC
+// ========================================
+(function () {
+  const input = document.getElementById('gh-username');
+  const btnBuild = document.getElementById('btn-build');
+  const errEl = document.getElementById('sc-error');
+  const scr = document.getElementById('search-screen');
+
+  // Example chips
+  document.querySelectorAll('.sc-example').forEach(el => {
+    el.addEventListener('click', () => {
+      input.value = el.dataset.user;
+      input.focus();
+    });
+  });
+
+  function extractUsername(raw) {
+    raw = raw.trim();
+    const match = raw.match(/github\.com\/([a-zA-Z0-9\-_]+)/);
+    if (match) return match[1];
+    return raw.replace(/^@/, '');
+  }
+
+  function go() {
+    const raw = input.value.trim();
+    if (!raw) {
+      errEl.textContent = 'Masukkan username GitHub';
+      errEl.classList.add('visible');
+      return;
+    }
+    const u = extractUsername(raw);
+    input.value = u;
+    startCity(u);
+  }
+
+  btnBuild.addEventListener('click', go);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+
+  // ===== MOBILE KEYBOARD HANDLING =====
+  const THRESH = 120;
+  let baseH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+  function onVVResize() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const diff = baseH - vv.height;
+    const open = diff > THRESH;
+    document.body.classList.toggle('keyboard-open', open);
+    if (open) {
+      scr.style.paddingBottom = diff + 'px';
+      requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+          document.activeElement.scrollIntoView({ block:'center', behavior:'smooth' });
+        }
+      });
+    } else {
+      scr.style.paddingBottom = '';
+      setTimeout(() => { baseH = vv.height; }, 200);
+    }
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onVVResize);
+    window.visualViewport.addEventListener('scroll', onVVResize);
+  } else {
+    window.addEventListener('resize', () => {
+      const diff = baseH - window.innerHeight;
+      const open = diff > THRESH;
+      document.body.classList.toggle('keyboard-open', open);
+      if (!open) baseH = window.innerHeight;
+    });
+  }
+
+  input.addEventListener('focus', () => { setTimeout(() => input.scrollIntoView({block:'center',behavior:'smooth'}), 350); });
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!document.activeElement || document.activeElement.tagName !== 'INPUT') {
+        document.body.classList.remove('keyboard-open');
+        scr.style.paddingBottom = '';
+      }
+    }, 150);
+  });
+
+  const mvp = document.querySelector('meta[name="viewport"]');
+  if (mvp) {
+    input.addEventListener('touchstart', () => { mvp.setAttribute('content','width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no'); }, {passive:true});
+    input.addEventListener('blur', () => { setTimeout(() => mvp.setAttribute('content','width=device-width,initial-scale=1.0'), 300); });
+  }
+
+  scr.addEventListener('touchstart', e => {
+    if (!e.target.closest('input') && !e.target.closest('button') && !e.target.closest('.sc-example')) {
+      document.activeElement?.blur();
+    }
+  }, {passive:true});
+
+  window.addEventListener('orientationchange', () => {
+    document.body.classList.remove('keyboard-open');
+    scr.style.paddingBottom = '';
+    setTimeout(() => { baseH = window.visualViewport ? window.visualViewport.height : window.innerHeight; }, 500);
+  });
+
+  // ===== AUTO-LOAD FROM URL PARAM =====
+  const urlUser = new URLSearchParams(location.search).get('user');
+  if (urlUser) {
+    input.value = urlUser;
+    setTimeout(() => startCity(urlUser), 300);
+  }
+})();
+</script>
+</body>
+</html>
